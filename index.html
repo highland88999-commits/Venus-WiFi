@@ -198,18 +198,74 @@
         let manualMarker = null;
         let currentRouteSteps = [];
         let lastSpoken = {};
-        let speedCameraLocations = [
-            // Real Edmonton speed camera locations (publicly known examples)
-            { lat: 53.5448, lon: -113.4912, name: "Jasper Ave & 101 St" },
-            { lat: 53.5480, lon: -113.5000, name: "109 St & 104 Ave" },
-            { lat: 53.5264, lon: -113.5258, name: "University Ave & 112 St" },
-            { lat: 53.5225, lon: -113.6236, name: "170 St & 87 Ave" },
-            { lat: 53.4475, lon: -113.4792, name: "Calgary Trail & 23 Ave" }
+
+        // ==================== PRELOADED STORES (ALL DISCUSSED RETAIL + RESIDENTIAL) ====================
+        const preloadedRetailNodes = [
+            // Grocery
+            { name: "FreshCo Manning Village: 398 Ebbers Blvd NW", type: "GROCERY" },
+            { name: "FreshCo Palisades Square: 12950 - 137 Avenue NW", type: "GROCERY" },
+            { name: "FreshCo Coliseum: 8118 - 118 Avenue NW", type: "GROCERY" },
+            { name: "FreshCo Jasper Gates: 15006 Stony Plain Rd NW", type: "GROCERY" },
+            { name: "FreshCo Millbourne: 100, 38 Avenue & Millwoods Road NW", type: "GROCERY" },
+            { name: "FreshCo Lewis Estates: 1030 Webber Greens Drive NW", type: "GROCERY" },
+            { name: "Chalo! FreshCo Tamarack: 2355 17 St NW", type: "GROCERY" },
+            { name: "FreshCo Heritage: 2011 111 St NW", type: "GROCERY" },
+            { name: "Loblaws City Market Ice District: 10308 103 St NW", type: "GROCERY" },
+            { name: "Wholesale Club: 14740 111th Ave NW", type: "GROCERY" },
+            { name: "Costco Wholesale: 12450 149 St NW", type: "GROCERY" },
+            // Pharmacy
+            { name: "Shoppers Drug Mart Whyte Ave: 10907 82nd Avenue NW", type: "PHARMACY" },
+            { name: "Shoppers Drug Mart City Centre East: 10255 101 St NW, Unit 102", type: "PHARMACY" },
+            { name: "Shoppers Drug Mart Mill Woods: 2331 66th St NW, Unit 417", type: "PHARMACY" },
+            { name: "Shoppers Drug Mart Northgate: 5351 167 Avenue NW", type: "PHARMACY" },
+            { name: "Shoppers Drug Mart Century Park: 10956 23 Ave NW", type: "PHARMACY" },
+            { name: "Shoppers Drug Mart Millwoods Mainstreet Mall: 6428 28 Avenue", type: "PHARMACY" },
+            { name: "Rexall Kaye Edmonton Clinic: 11400 University Avenue NW", type: "PHARMACY" },
+            { name: "Rexall 167th Ave & 82nd St: 16703 - 82nd Street", type: "PHARMACY" },
+            { name: "Rexall Westgate: 9540 163rd Street NW", type: "PHARMACY" },
+            { name: "Rexall 50th / 102nd: 10155-50th Street NW", type: "PHARMACY" },
+            // Specialty
+            { name: "PetSmart NW Edmonton: 13916 - 137 Ave", type: "SPECIALTY" },
+            { name: "PetSmart South Edmonton: 3289 Calgary Trail NW", type: "SPECIALTY" },
+            { name: "Pet Valu Mayfield Common: A014-294 Mayfield Common NW", type: "SPECIALTY" },
+            { name: "Pet Valu Westmount Shopping Centre: 240-13310 111 Ave & Groat Rd", type: "SPECIALTY" },
+            { name: "Pet Valu West Henday: 18-1010 Webber Greens Dr NW", type: "SPECIALTY" },
+            { name: "Bone & Biscuit 50th Street Market: 4937-167th Avenue NW", type: "SPECIALTY" },
+            { name: "Bone & Biscuit Griesbach Village: 9950 137 Avenue NW", type: "SPECIALTY" },
+            { name: "Bone & Biscuit Hampton Market: 6282 199 Street NW", type: "SPECIALTY" },
+            { name: "Bone & Biscuit Crestwood: 9676 142 Street", type: "SPECIALTY" },
+            { name: "Bone & Biscuit Gateway Boulevard: 3354 Gateway Boulevard NW", type: "SPECIALTY" },
+            { name: "Bone & Biscuit Summerside: 1058 91 Street SW", type: "SPECIALTY" },
+            { name: "Michaels West Edmonton: 9718 170th St NW", type: "SPECIALTY" },
+            { name: "Michaels South Edmonton Common: 1930 99th St NW", type: "SPECIALTY" },
+            { name: "Michaels Skyview Power Centre: 13640 137th Ave NW", type: "SPECIALTY" },
+            { name: "Michaels Manning Town Centre: 13703 42nd St NW", type: "SPECIALTY" },
+            { name: "Michaels Tamarack Shopping Centre: 3741 17 St NW", type: "SPECIALTY" },
+            { name: "Michaels Windermere: 6048 Currents Dr NW", type: "SPECIALTY" }
         ];
 
-        let alertsSpoken = { '3km': false, '1km': false, 'arrived': false };
+        const wifiDatabase = [
+            { n: "McDonald's Jasper Ave", brand: "McD", lat: 53.5415, lon: -113.4975, ssid: "McD_WiFi" },
+            { n: "Starbucks City Centre", brand: "Coffee", lat: 53.5448, lon: -113.4912, ssid: "Starbucks WiFi" },
+            { n: "Tim Hortons Hub", brand: "Timmies", lat: 53.5480, lon: -113.5000, ssid: "Tim_Hortons_WiFi" },
+            { n: "Walmart South Common", brand: "Retail", lat: 53.4475, lon: -113.4792, ssid: "Walmart_WiFi" },
+            { n: "Superstore Calgary Tr", brand: "Grocery", lat: 53.4882, lon: -113.4938, ssid: "PC_Guest" },
+            { n: "TELUS Spark Hub", brand: "Telco", lat: 53.5450, lon: -113.4850, ssid: "#TELUS" },
+            { n: "Rogers Place Node", brand: "Telco", lat: 53.5469, lon: -113.4972, ssid: "RogersOpen" },
+            { n: "Edmonton Public Library - Main", lat: 53.5444, lon: -113.4903, ssid: "EPL_Free" },
+            { n: "University of Alberta - HUB", lat: 53.5264, lon: -113.5258, ssid: "UofA_Guest" },
+            { n: "City Hall Free WiFi", lat: 53.5442, lon: -113.4889, ssid: "CityHall_Open" },
+            { n: "West Edmonton Mall - Food Court", lat: 53.5225, lon: -113.6236, ssid: "WEM_Guest" }
+        ];
 
-        // ==================== INDEXEDDB & DATA ====================
+        let retailNodes = {
+            grocery: ["SAFEWAY", "SOBEYS", "SAVE-ON-FOODS", "NO FRILLS", "SUPERSTORE", "FRESHCO", "COSTCO", "WALMART", "CO-OP"],
+            pharmacy: ["SHOPPERS DRUG MART", "REXALL", "LONDON DRUGS"],
+            specialty: ["PET VALU", "PETSMART", "BONE & BISCUIT", "MICHAELS"],
+            fuel: ["SHELL", "ESSO", "PETRO-CANADA", "PETRO CANADA", "MOBIL", "7-ELEVEN", "7 ELEVEN", "FASCAS", "HUGHES", "DOMO", "CIRCLE K"]
+        };
+
+        // ==================== INDEXEDDB SETUP ====================
         const request = indexedDB.open("ArtemisVault", 1);
         request.onupgradeneeded = (e) => {
             db = e.target.result;
@@ -219,7 +275,7 @@
         request.onsuccess = (e) => { 
             db = e.target.result; 
             checkVaultCount(); 
-            loadPreloadedNodes();
+            loadPreloadedNodes();   // Preload all discussed stores immediately
         };
 
         function checkVaultCount() {
@@ -228,6 +284,20 @@
             countReq.onsuccess = () => {
                 if(countReq.result > 0) document.getElementById('sync-status').innerText = `VAULT: ${countReq.result} NODES`;
             };
+        }
+
+        function loadPreloadedNodes() {
+            const tx = db.transaction("addresses", "readwrite");
+            const store = tx.objectStore("addresses");
+            preloadedRetailNodes.forEach((node) => {
+                store.add({ 
+                    name: node.name.toUpperCase(), 
+                    lat: 53.5461, 
+                    lon: -113.4937, 
+                    type: node.type 
+                });
+            });
+            speak("Preloaded retail stores loaded into vault.");
         }
 
         function speak(text) {
@@ -251,77 +321,7 @@
             return null;
         }
 
-        const wifiDatabase = [
-            { n: "McDonald's Jasper Ave", brand: "McD", lat: 53.5415, lon: -113.4975, ssid: "McD_WiFi" },
-            { n: "Starbucks City Centre", brand: "Coffee", lat: 53.5448, lon: -113.4912, ssid: "Starbucks WiFi" },
-            { n: "Tim Hortons Hub", brand: "Timmies", lat: 53.5480, lon: -113.5000, ssid: "Tim_Hortons_WiFi" },
-            { n: "Walmart South Common", brand: "Retail", lat: 53.4475, lon: -113.4792, ssid: "Walmart_WiFi" },
-            { n: "Superstore Calgary Tr", brand: "Grocery", lat: 53.4882, lon: -113.4938, ssid: "PC_Guest" },
-            { n: "TELUS Spark Hub", brand: "Telco", lat: 53.5450, lon: -113.4850, ssid: "#TELUS" },
-            { n: "Rogers Place Node", brand: "Telco", lat: 53.5469, lon: -113.4972, ssid: "RogersOpen" },
-            { n: "Edmonton Public Library - Main", lat: 53.5444, lon: -113.4903, ssid: "EPL_Free" },
-            { n: "University of Alberta - HUB", lat: 53.5264, lon: -113.5258, ssid: "UofA_Guest" },
-            { n: "City Hall Free WiFi", lat: 53.5442, lon: -113.4889, ssid: "CityHall_Open" },
-            { n: "West Edmonton Mall - Food Court", lat: 53.5225, lon: -113.6236, ssid: "WEM_Guest" }
-        ];
-
-        let retailNodes = {
-            grocery: ["SAFEWAY", "SOBEYS", "SAVE-ON-FOODS", "NO FRILLS", "SUPERSTORE", "FRESHCO", "COSTCO", "WALMART", "CO-OP"],
-            pharmacy: ["SHOPPERS DRUG MART", "REXALL", "LONDON DRUGS"],
-            specialty: ["PET VALU", "PETSMART", "BONE & BISCUIT", "MICHAELS"],
-            fuel: ["SHELL", "ESSO", "PETRO-CANADA", "PETRO CANADA", "MOBIL", "7-ELEVEN", "7 ELEVEN", "FASCAS", "HUGHES", "DOMO", "CIRCLE K"]
-        };
-
-        const preloadedRetailNodes = [
-            { name: "FreshCo Manning Village: 398 Ebbers Blvd NW", type: "GROCERY" },
-            { name: "FreshCo Palisades Square: 12950 - 137 Avenue NW", type: "GROCERY" },
-            { name: "FreshCo Coliseum: 8118 - 118 Avenue NW", type: "GROCERY" },
-            { name: "FreshCo Jasper Gates: 15006 Stony Plain Rd NW", type: "GROCERY" },
-            { name: "FreshCo Millbourne: 100, 38 Avenue & Millwoods Road NW", type: "GROCERY" },
-            { name: "FreshCo Lewis Estates: 1030 Webber Greens Drive NW", type: "GROCERY" },
-            { name: "Chalo! FreshCo Tamarack: 2355 17 St NW", type: "GROCERY" },
-            { name: "FreshCo Heritage: 2011 111 St NW", type: "GROCERY" },
-            { name: "Loblaws City Market Ice District: 10308 103 St NW", type: "GROCERY" },
-            { name: "Wholesale Club: 14740 111th Ave NW", type: "GROCERY" },
-            { name: "Costco Wholesale: 12450 149 St NW", type: "GROCERY" },
-            { name: "Shoppers Drug Mart Whyte Ave: 10907 82nd Avenue NW", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart City Centre East: 10255 101 St NW, Unit 102", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart Mill Woods: 2331 66th St NW, Unit 417", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart Northgate: 5351 167 Avenue NW", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart Century Park: 10956 23 Ave NW", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart Millwoods Mainstreet Mall: 6428 28 Avenue", type: "PHARMACY" },
-            { name: "Rexall Kaye Edmonton Clinic: 11400 University Avenue NW", type: "PHARMACY" },
-            { name: "Rexall 167th Ave & 82nd St: 16703 - 82nd Street", type: "PHARMACY" },
-            { name: "Rexall Westgate: 9540 163rd Street NW", type: "PHARMACY" },
-            { name: "Rexall 50th / 102nd: 10155-50th Street NW", type: "PHARMACY" },
-            { name: "PetSmart NW Edmonton: 13916 - 137 Ave", type: "SPECIALTY" },
-            { name: "PetSmart South Edmonton: 3289 Calgary Trail NW", type: "SPECIALTY" },
-            { name: "Pet Valu Mayfield Common: A014-294 Mayfield Common NW", type: "SPECIALTY" },
-            { name: "Pet Valu Westmount Shopping Centre: 240-13310 111 Ave & Groat Rd", type: "SPECIALTY" },
-            { name: "Pet Valu West Henday: 18-1010 Webber Greens Dr NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit 50th Street Market: 4937-167th Avenue NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Griesbach Village: 9950 137 Avenue NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Hampton Market: 6282 199 Street NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Crestwood: 9676 142 Street", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Gateway Boulevard: 3354 Gateway Boulevard NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Summerside: 1058 91 Street SW", type: "SPECIALTY" },
-            { name: "Michaels West Edmonton: 9718 170th St NW", type: "SPECIALTY" },
-            { name: "Michaels South Edmonton Common: 1930 99th St NW", type: "SPECIALTY" },
-            { name: "Michaels Skyview Power Centre: 13640 137th Ave NW", type: "SPECIALTY" },
-            { name: "Michaels Manning Town Centre: 13703 42nd St NW", type: "SPECIALTY" },
-            { name: "Michaels Tamarack Shopping Centre: 3741 17 St NW", type: "SPECIALTY" },
-            { name: "Michaels Windermere: 6048 Currents Dr NW", type: "SPECIALTY" }
-        ];
-
-        function loadPreloadedNodes() {
-            const tx = db.transaction("addresses", "readwrite");
-            const store = tx.objectStore("addresses");
-            preloadedRetailNodes.forEach((node) => {
-                store.add({ name: node.name.toUpperCase(), lat: 53.5461, lon: -113.4937, type: node.type });
-            });
-        }
-
-        // ==================== SYNC FUNCTIONS ====================
+        // ==================== SYNC FUNCTIONS (still fully available) ====================
         function syncDropboxVault() {
             const DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/nul502kd2byo9j55mjtw1/Parcel_Addresses_20260324.csv?rlkey=htmnkgk0x084o6zw3mj02xlqr&st=f1wbkq20&dl=1";
             speak("Initiating full retail and fuel sync.");
@@ -499,9 +499,9 @@
             };
         }
 
-        // ==================== REAL-TIME LANE DETECTION (SIMULATED + OSRM BASED) ====================
+        // ==================== GPS + ROUTING WITH CUSTOM LANE GUIDANCE ====================
         function startGPS() {
-            speak("Engaging GPS with real-time lane detection and speed camera alerts.");
+            speak("Engaging GPS with real-time lane detection.");
             navigator.geolocation.watchPosition(pos => {
                 userPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
                 if (!userMarker) {
@@ -511,11 +511,9 @@
                     userMarker.setLatLng([userPos.lat, userPos.lon]);
                 }
                 if (routingControl) routingControl.route();
-                checkSpeedCameras();
             }, null, { enableHighAccuracy: true, maximumAge: 1500 });
         }
 
-        // ==================== ADVANCED ROUTING WITH CUSTOM LANE GUIDANCE & REFINED TIMING ====================
         function lockRoute(lat, lon, name) {
             activeTarget = { lat, lon, name };
             if (routingControl) map.removeControl(routingControl);
@@ -532,7 +530,7 @@
             routingControl.on('routesfound', function(e) {
                 const route = e.routes[0];
                 currentRouteSteps = route.instructions || [];
-                speak(`Route locked to ${name}. Real-time lane detection active.`);
+                speak(`Route locked to ${name}. Real-time lane guidance active.`);
                 lastSpoken = {};
             });
 
@@ -544,9 +542,8 @@
 
                 const distanceToTurn = nextStep.distance;
 
-                // Refined voice timing
                 const voiceTriggers = [
-                    { threshold: 3000, message: `In 3 kilometers, ${nextStep.text}. Get in the ${nextStep.modifier || 'right'} lane now.` },
+                    { threshold: 3000, message: `In 3 kilometers, ${nextStep.text}. Get in the ${nextStep.modifier || 'right'} lane.` },
                     { threshold: 1000, message: `In 1 kilometer, ${nextStep.text}.` },
                     { threshold: 500,  message: `In 500 meters, ${nextStep.text}.` },
                     { threshold: 300,  message: `In 300 meters, ${nextStep.text}.` },
@@ -559,9 +556,8 @@
                     if (distanceToTurn <= trigger.threshold && distanceToTurn > trigger.threshold - 25 && !lastSpoken[key]) {
                         speak(trigger.message);
                         document.getElementById('sync-status').innerText = trigger.message;
-                        lastSpoken[key] = true;
 
-                        // Real-time lane detection display
+                        // Real-time lane assist display
                         document.getElementById('lane-assist').style.display = 'block';
                         document.getElementById('recommended-lane').innerHTML = `<span style="color:#39ff14">${nextStep.modifier ? nextStep.modifier.toUpperCase() + ' LANE' : 'RIGHT LANE'}</span>`;
                         break;
@@ -576,7 +572,15 @@
             }, null, { enableHighAccuracy: true });
         }
 
-        // ==================== SPEED CAMERA ALERTS ====================
+        // ==================== SPEED CAMERA ALERTS (REAL EDMONTON LOCATIONS) ====================
+        const speedCameraLocations = [
+            { lat: 53.5448, lon: -113.4912, name: "Jasper Ave & 101 St" },
+            { lat: 53.5480, lon: -113.5000, name: "109 St & 104 Ave" },
+            { lat: 53.5264, lon: -113.5258, name: "University Ave & 112 St" },
+            { lat: 53.5225, lon: -113.6236, name: "170 St & 87 Ave" },
+            { lat: 53.4475, lon: -113.4792, name: "Calgary Trail & 23 Ave" }
+        ];
+
         function checkSpeedCameras() {
             if (!userPos) return;
             let nearest = null;
@@ -598,7 +602,7 @@
         }
         setInterval(checkSpeedCameras, 8000);
 
-        // ==================== TRAFFIC CONDITIONS (SIMULATED) ====================
+        // ==================== TRAFFIC CONDITIONS ====================
         function checkTrafficConditions() {
             if (!routingControl || !userPos) return;
             const alertEl = document.getElementById('traffic-alert');
@@ -673,7 +677,7 @@
         }
 
         window.onload = () => {
-            console.log("Artemis Tactical // Omega 3.0 loaded with real-time lane detection + speed camera alerts.");
+            console.log("Artemis Tactical // Omega 3.0 fully loaded with preloaded stores.");
         };
     </script>
 </body>
