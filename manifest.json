@@ -18,8 +18,5 @@
   "display": "standalone",
   "scope": "./",
   "theme_color": "#00f3ff",
-  "orientation": "portrait",
-  "description": "Offline tactical navigation for Edmonton with real-time lane guidance, speed camera alerts, and full retail/residential vault",
-  "categories": ["navigation", "utilities", "maps"],
-  "lang": "en-CA"
+  "orientation": "portrait"
 }
