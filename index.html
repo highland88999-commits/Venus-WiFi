@@ -79,6 +79,8 @@
         button.green:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 15px var(--neon-green); }
         button.weather { color: var(--neon-yellow); border-color: var(--neon-yellow); }
         button.weather:hover { background: var(--neon-yellow); color: #000; box-shadow: 0 0 15px var(--neon-yellow); }
+        button.nearby { color: #39ff14; border-color: #39ff14; }
+        button.nearby:hover { background: #39ff14; color: #000; box-shadow: 0 0 15px #39ff14; }
 
         #progress-bar {
             height: 4px; background: var(--neon-pink); width: 0%;
@@ -145,7 +147,9 @@
         <div class="controls">
             <button class="pink" onclick="syncDropboxVault()">📡 DL DROPBOX VAULT</button>
             <button class="green" onclick="syncEdmontonOpenData()">🌐 BUSINESS OPEN DATA</button>
-            <button class="purple" onclick="syncResidentialParcels()">🏠 RESIDENTIAL PARCELS</button>
+            <button class="purple" onclick="syncResidentialParcels()">🏠 RESIDENTIAL PARCELS (FULL)</button>
+            <button class="nearby" onclick="loadNearbyAddresses(30)">📍 LOAD NEARBY (30 km)</button>
+            <button class="purple" onclick="clearVaultAndRetry()">🔄 CLEAR VAULT & RETRY FULL</button>
             <button class="weather" onclick="fetchWeatherData()">☀️ METEO + AQI + HOURLY</button>
             <button class="purple" onclick="syncWifiNodes()">📶 PING ALL OPEN WIFI</button>
             <button onclick="startGPS()">🛰️ ENGAGE GPS</button>
@@ -185,7 +189,6 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
     <script>
-        // ==================== MAP INITIALIZATION ====================
         const map = L.map('map').setView([53.5461, -113.4937], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -199,9 +202,8 @@
         let currentRouteSteps = [];
         let lastSpoken = {};
 
-        // ==================== PRELOADED STORES (ALL DISCUSSED RETAIL + RESIDENTIAL) ====================
+        // ==================== PRELOADED STORES ====================
         const preloadedRetailNodes = [
-            // Grocery
             { name: "FreshCo Manning Village: 398 Ebbers Blvd NW", type: "GROCERY" },
             { name: "FreshCo Palisades Square: 12950 - 137 Avenue NW", type: "GROCERY" },
             { name: "FreshCo Coliseum: 8118 - 118 Avenue NW", type: "GROCERY" },
@@ -213,7 +215,6 @@
             { name: "Loblaws City Market Ice District: 10308 103 St NW", type: "GROCERY" },
             { name: "Wholesale Club: 14740 111th Ave NW", type: "GROCERY" },
             { name: "Costco Wholesale: 12450 149 St NW", type: "GROCERY" },
-            // Pharmacy
             { name: "Shoppers Drug Mart Whyte Ave: 10907 82nd Avenue NW", type: "PHARMACY" },
             { name: "Shoppers Drug Mart City Centre East: 10255 101 St NW, Unit 102", type: "PHARMACY" },
             { name: "Shoppers Drug Mart Mill Woods: 2331 66th St NW, Unit 417", type: "PHARMACY" },
@@ -224,7 +225,6 @@
             { name: "Rexall 167th Ave & 82nd St: 16703 - 82nd Street", type: "PHARMACY" },
             { name: "Rexall Westgate: 9540 163rd Street NW", type: "PHARMACY" },
             { name: "Rexall 50th / 102nd: 10155-50th Street NW", type: "PHARMACY" },
-            // Specialty
             { name: "PetSmart NW Edmonton: 13916 - 137 Ave", type: "SPECIALTY" },
             { name: "PetSmart South Edmonton: 3289 Calgary Trail NW", type: "SPECIALTY" },
             { name: "Pet Valu Mayfield Common: A014-294 Mayfield Common NW", type: "SPECIALTY" },
@@ -275,14 +275,14 @@
         request.onsuccess = (e) => { 
             db = e.target.result; 
             checkVaultCount(); 
-            loadPreloadedNodes();   // Preload all discussed stores immediately
+            loadPreloadedNodes();
         };
 
         function checkVaultCount() {
             const tx = db.transaction("addresses", "readonly");
             const countReq = tx.objectStore("addresses").count();
             countReq.onsuccess = () => {
-                if(countReq.result > 0) document.getElementById('sync-status').innerText = `VAULT: ${countReq.result} NODES`;
+                document.getElementById('sync-status').innerText = `VAULT: ${countReq.result} NODES`;
             };
         }
 
@@ -290,14 +290,8 @@
             const tx = db.transaction("addresses", "readwrite");
             const store = tx.objectStore("addresses");
             preloadedRetailNodes.forEach((node) => {
-                store.add({ 
-                    name: node.name.toUpperCase(), 
-                    lat: 53.5461, 
-                    lon: -113.4937, 
-                    type: node.type 
-                });
+                store.add({ name: node.name.toUpperCase(), lat: 53.5461, lon: -113.4937, type: node.type });
             });
-            speak("Preloaded retail stores loaded into vault.");
         }
 
         function speak(text) {
@@ -321,12 +315,86 @@
             return null;
         }
 
-        // ==================== SYNC FUNCTIONS (still fully available) ====================
+        // ==================== DUPLICATE CHECK HELPER ====================
+        async function addressExists(name) {
+            return new Promise(resolve => {
+                const tx = db.transaction("addresses", "readonly");
+                const index = tx.objectStore("addresses").index("name");
+                const req = index.get(name.toUpperCase());
+                req.onsuccess = () => resolve(!!req.result);
+            });
+        }
+
+        // ==================== NEARBY ADDRESSES (30 km) WITH DUPLICATE SKIP ====================
+        async function loadNearbyAddresses(radiusKm = 30) {
+            if (!userPos) {
+                speak("GPS required for nearby load.");
+                return;
+            }
+
+            speak(`Loading addresses within ${radiusKm} km radius.`);
+            document.getElementById('sync-status').innerText = `📍 LOADING NEARBY (${radiusKm} km)...`;
+
+            const RESIDENTIAL_URL = "https://data.edmonton.ca/api/views/ut27-nrpn/rows.csv?accessType=DOWNLOAD";
+            let count = 0;
+
+            Papa.parse(RESIDENTIAL_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                chunk: async function(results) {
+                    const tx = db.transaction("addresses", "readwrite");
+                    const store = tx.objectStore("addresses");
+
+                    for (let row of results.data) {
+                        const rawAddr = row["ADDRESS"] || row["FULL_ADDRESS"] || row["Civic Address"] || getColumnData(row, ["ADDRESS", "SITE ADDRESS", "STREET ADDRESS", "FULL ADDRESS"]);
+                        const rawLat = row["LATITUDE"] || row["Y"] || getColumnData(row, ["LATITUDE", "LAT", "Y"]);
+                        const rawLon = row["LONGITUDE"] || row["X"] || getColumnData(row, ["LONGITUDE", "LON", "X"]);
+
+                        if (rawAddr && rawLat && rawLon) {
+                            const lat = parseFloat(rawLat);
+                            const lon = parseFloat(rawLon);
+                            if (isNaN(lat) || isNaN(lon)) continue;
+
+                            const dist = calculateDistance(userPos.lat, userPos.lon, lat, lon);
+                            if (dist <= radiusKm) {
+                                const upperName = rawAddr.trim().toUpperCase();
+                                const exists = await addressExists(upperName);
+                                if (!exists) {
+                                    store.add({ name: upperName, lat: lat, lon: lon, type: "RESIDENTIAL" });
+                                    count++;
+                                }
+                            }
+                        }
+                    }
+                },
+                complete: function() {
+                    speak(`Loaded ${count} new nearby addresses within ${radiusKm} km.`);
+                    checkVaultCount();
+                    document.getElementById('sync-status').innerText = `✅ NEARBY: ${count} ADDRESSES ADDED`;
+                }
+            });
+        }
+
+        // ==================== CLEAR VAULT & RETRY FULL ====================
+        function clearVaultAndRetry() {
+            if (confirm("Clear the entire vault and restart full residential sync?")) {
+                const tx = db.transaction("addresses", "readwrite");
+                const store = tx.objectStore("addresses");
+                store.clear().onsuccess = () => {
+                    speak("Vault cleared. Restarting full residential sync.");
+                    syncResidentialParcels();
+                };
+            }
+        }
+
+        // ==================== SYNC FUNCTIONS ====================
         function syncDropboxVault() {
             const DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/nul502kd2byo9j55mjtw1/Parcel_Addresses_20260324.csv?rlkey=htmnkgk0x084o6zw3mj02xlqr&st=f1wbkq20&dl=1";
             speak("Initiating full retail and fuel sync.");
             document.getElementById('sync-status').innerText = "📡 SCANNING NODES...";
             let count = 0;
+
             Papa.parse(DROPBOX_URL, {
                 download: true,
                 header: true,
@@ -334,10 +402,12 @@
                 chunk: function(results) {
                     const tx = db.transaction("addresses", "readwrite");
                     const store = tx.objectStore("addresses");
+
                     results.data.forEach(row => {
                         const rawName = getColumnData(row, ["ADDRESS", "FULL ADDRESS", "SITE_ADDRESS", "NAME"]);
                         const rawLat = getColumnData(row, ["LATITUDE", "LAT", "Y"]);
                         const rawLon = getColumnData(row, ["LONGITUDE", "LON", "X"]);
+
                         if (rawName && rawLat && rawLon) {
                             const upperName = rawName.trim().toUpperCase();
                             let category = "GENERAL";
@@ -345,10 +415,17 @@
                             if (retailNodes.pharmacy.some(brand => upperName.includes(brand))) category = "PHARMACY";
                             if (retailNodes.specialty.some(brand => upperName.includes(brand))) category = "SPECIALTY";
                             if (retailNodes.fuel.some(brand => upperName.includes(brand))) category = "FUEL";
-                            store.add({ name: upperName, lat: parseFloat(rawLat), lon: parseFloat(rawLon), type: category });
+
+                            store.add({ 
+                                name: upperName, 
+                                lat: parseFloat(rawLat), 
+                                lon: parseFloat(rawLon),
+                                type: category 
+                            });
                             count++;
                         }
                     });
+                    
                     document.getElementById('progress-bar').style.width = (count / 4200) + "%"; 
                 },
                 complete: function() {
@@ -365,6 +442,7 @@
             speak("Connecting to City of Edmonton Open Data Portal.");
             document.getElementById('sync-status').innerText = "🌐 SYNCING OFFICIAL NODES...";
             let count = 0;
+
             Papa.parse(OPEN_DATA_URL, {
                 download: true,
                 header: true,
@@ -372,26 +450,31 @@
                 chunk: function(results) {
                     const tx = db.transaction("addresses", "readwrite");
                     const store = tx.objectStore("addresses");
+
                     results.data.forEach(row => {
                         const rawName = row["Business Name"] || getColumnData(row, ["BUSINESS NAME", "NAME"]);
                         const rawLat = row["Latitude"] || getColumnData(row, ["LATITUDE", "LAT"]);
                         const rawLon = row["Longitude"] || getColumnData(row, ["LONGITUDE", "LON"]);
                         const categoryField = row["Category"] || row["Business Licence Category"] || "";
+
                         if (rawName && rawLat && rawLon) {
                             const upperName = rawName.trim().toUpperCase();
                             const lat = parseFloat(rawLat);
                             const lon = parseFloat(rawLon);
+
                             let nodeType = "GENERAL";
                             if (retailNodes.grocery.some(brand => upperName.includes(brand))) nodeType = "GROCERY";
                             else if (retailNodes.pharmacy.some(brand => upperName.includes(brand))) nodeType = "PHARMACY";
                             else if (retailNodes.specialty.some(brand => upperName.includes(brand))) nodeType = "SPECIALTY";
                             else if (retailNodes.fuel.some(brand => upperName.includes(brand)) || categoryField.includes("Fueling Station") || categoryField.includes("Vehicle Wash")) nodeType = "FUEL";
+
                             if (nodeType !== "GENERAL") {
                                 store.add({ name: upperName, lat: lat, lon: lon, type: nodeType });
                                 count++;
                             }
                         }
                     });
+                    
                     document.getElementById('progress-bar').style.width = Math.min((count / 800) * 100, 100) + "%"; 
                 },
                 complete: function() {
@@ -409,6 +492,7 @@
             speak("Loading full Edmonton residential parcel grid.");
             document.getElementById('sync-status').innerText = "🏠 SYNCING RESIDENTIAL PARCELS...";
             let count = 0;
+
             Papa.parse(RESIDENTIAL_URL, {
                 download: true,
                 header: true,
@@ -416,10 +500,12 @@
                 chunk: function(results) {
                     const tx = db.transaction("addresses", "readwrite");
                     const store = tx.objectStore("addresses");
+
                     results.data.forEach(row => {
                         const rawAddr = row["ADDRESS"] || row["FULL_ADDRESS"] || row["Civic Address"] || getColumnData(row, ["ADDRESS", "SITE ADDRESS", "STREET ADDRESS", "FULL ADDRESS"]);
                         const rawLat  = row["LATITUDE"] || row["Y"] || getColumnData(row, ["LATITUDE", "LAT", "Y"]);
                         const rawLon  = row["LONGITUDE"] || row["X"] || getColumnData(row, ["LONGITUDE", "LON", "X"]);
+
                         if (rawAddr && rawLat && rawLon) {
                             const upperName = rawAddr.trim().toUpperCase();
                             const lat = parseFloat(rawLat);
@@ -462,21 +548,26 @@
         function searchVault() {
             const query = document.getElementById('search-input').value.toUpperCase().trim();
             if (!query) return;
+
             const tx = db.transaction("addresses", "readonly");
             const index = tx.objectStore("addresses").index("name");
+
             document.getElementById('sync-status').innerText = "🔍 SCANNING VAULT...";
+
             index.openCursor().onsuccess = (e) => {
                 const cursor = e.target.result;
                 if (cursor) {
                     const node = cursor.value;
                     if (node.name.includes(query)) {
                         map.setView([node.lat, node.lon], 16);
+                        
                         let markerColor = '#ff0055';
                         if (node.type === "GROCERY") markerColor = '#39ff14';
                         if (node.type === "PHARMACY") markerColor = '#00f3ff';
                         if (node.type === "SPECIALTY") markerColor = '#b500ff';
                         if (node.type === "FUEL") markerColor = '#ffff00';
                         if (node.type === "RESIDENTIAL") markerColor = '#b500ff';
+
                         if (destMarker) map.removeLayer(destMarker);
                         destMarker = L.circleMarker([node.lat, node.lon], {
                             radius: 11, color: markerColor, fillColor: markerColor, fillOpacity: 0.85, weight: 3
@@ -487,6 +578,7 @@
                                 <button onclick="lockRoute(${node.lat}, ${node.lon}, '${node.name.replace(/'/g, "\\'")}')">LOCK VECTOR</button>
                             </div>
                         `).openPopup();
+
                         speak(`${node.name} locked.`);
                         document.getElementById('sync-status').innerText = "✅ NODE LOCKED";
                         return;
@@ -499,7 +591,7 @@
             };
         }
 
-        // ==================== GPS + ROUTING WITH CUSTOM LANE GUIDANCE ====================
+        // ==================== GPS + ROUTING ====================
         function startGPS() {
             speak("Engaging GPS with real-time lane detection.");
             navigator.geolocation.watchPosition(pos => {
@@ -557,7 +649,6 @@
                         speak(trigger.message);
                         document.getElementById('sync-status').innerText = trigger.message;
 
-                        // Real-time lane assist display
                         document.getElementById('lane-assist').style.display = 'block';
                         document.getElementById('recommended-lane').innerHTML = `<span style="color:#39ff14">${nextStep.modifier ? nextStep.modifier.toUpperCase() + ' LANE' : 'RIGHT LANE'}</span>`;
                         break;
@@ -572,7 +663,7 @@
             }, null, { enableHighAccuracy: true });
         }
 
-        // ==================== SPEED CAMERA ALERTS (REAL EDMONTON LOCATIONS) ====================
+        // ==================== SPEED CAMERA ALERTS ====================
         const speedCameraLocations = [
             { lat: 53.5448, lon: -113.4912, name: "Jasper Ave & 101 St" },
             { lat: 53.5480, lon: -113.5000, name: "109 St & 104 Ave" },
