@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ CYBER_NAV // YEG_SECTOR ⚡</title>
+    <title>⚡ ARtemis_NAV // OMEGA_BUILD ⚡</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00f3ff">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     
     <style>
         :root {
@@ -58,43 +60,53 @@
             box-shadow: inset 0 0 5px var(--neon-cyan);
         }
 
-        .controls { display: flex; gap: 10px; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; }
 
         button {
             background: transparent; color: var(--neon-cyan); border: 1px solid var(--neon-cyan);
-            padding: 10px; cursor: pointer; font-family: var(--terminal-font);
-            text-transform: uppercase; font-weight: bold; transition: all 0.3s ease;
+            padding: 8px; cursor: pointer; font-family: var(--terminal-font);
+            text-transform: uppercase; font-weight: bold; transition: all 0.3s ease; font-size: 0.8rem;
+            flex-grow: 1; text-align: center;
         }
 
         button:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 15px var(--neon-cyan); }
         button.pink { color: var(--neon-pink); border-color: var(--neon-pink); }
         button.pink:hover { background: var(--neon-pink); color: #fff; box-shadow: 0 0 15px var(--neon-pink); }
+        button.purple { color: var(--neon-purple); border-color: var(--neon-purple); }
+        button.purple:hover { background: var(--neon-purple); color: #fff; box-shadow: 0 0 15px var(--neon-purple); }
+
+        #progress-bar {
+            height: 4px; background: var(--neon-pink); width: 0%;
+            transition: width 0.3s; box-shadow: 0 0 10px var(--neon-pink); z-index: 1002;
+        }
 
         #map { flex-grow: 1; z-index: 1000; }
-
         .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%); }
 
         .leaflet-popup-content-wrapper {
-            background: #0d0d1a; color: #fff; border: 1px solid var(--neon-purple);
-            font-family: var(--terminal-font); box-shadow: 0 0 10px var(--neon-purple);
+            background: #0d0d1a; color: #fff; border: 1px solid var(--neon-cyan);
+            font-family: var(--terminal-font); box-shadow: 0 0 10px var(--neon-cyan);
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>[SYS_NAV] VECTOR_TRACKER // YEG</h1>
+        <h1>[ARTEMIS] SYSTEM_CORE</h1>
         <div id="sync-status" style="color: var(--neon-green); font-size: 0.8rem;">🛰️ STANDBY</div>
     </header>
 
+    <div id="progress-bar"></div>
+
     <div class="nav-dash">
         <div class="search-bar">
-            <input type="text" id="search-input" placeholder="SEARCH OFFLINE CACHE (e.g., Walmart)...">
-            <button onclick="searchOffline()">🔍 SCAN</button>
+            <input type="text" id="search-input" placeholder="SEARCH OFFLINE VAULT...">
+            <button onclick="searchVault()">🔍 SCAN</button>
         </div>
         <div class="controls">
-            <button class="pink" onclick="syncLocalData()">💾 SYNC</button>
-            <button onclick="startNavScan()">📡 ENGAGE GPS</button>
+            <button class="pink" onclick="syncDropboxVault()">📡 DL DROPBOX VAULT</button>
+            <button class="purple" onclick="syncWifiNodes()">📶 SYNC WIFI NODES</button>
+            <button onclick="startGPS()">🛰️ ENGAGE GPS</button>
         </div>
     </div>
 
@@ -102,38 +114,61 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
+        // --- MAP INITIALIZATION ---
         const map = L.map('map').setView([53.5461, -113.4937], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        const yegDatabase = [
+        // --- GLOBAL VARIABLES ---
+        let db;
+        let userMarker = null;       // Purple
+        let destMarker = null;       // Red
+        let activeRouteLine = null;  // Cyan Auto-Adjusting Line
+        let activeTarget = null;
+        let userPos = null;
+        let wifiLayer = L.layerGroup().addTo(map); // Holds all blue markers
+        
+        // Voice Alert Flags
+        let alertsSpoken = { '3km': false, '1km': false, '500ft': false, '100ft': false, 'arrived': false };
+
+        // --- HARDCODED WIFI DATABASE ---
+        const yegWifiDatabase = [
             { n: "EPL Stanley Milner", lat: 53.5435, lon: -113.4895, s: "EPL-Free-Wifi" },
             { n: "City Hall Hub", lat: 53.5453, lon: -113.4901, s: "Open City Wi-Fi" },
             { n: "McDonald's Jasper Ave", lat: 53.5415, lon: -113.4975, s: "BELLWIFI@MCD" },
             { n: "Southgate Shopping Hub", lat: 53.4851, lon: -113.5144, s: "#TELUS" },
             { n: "Walmart South Common", lat: 53.4475, lon: -113.4792, s: "Walmart_WiFi" },
-            { n: "Superstore Calgary Trail", lat: 53.4882, lon: -113.4938, s: "PC_Guest" },
             { n: "West Edmonton Mall", lat: 53.5225, lon: -113.6242, s: "WEM-Guest" },
-            { n: "Kingsway Mall", lat: 53.5555, lon: -113.5012, s: "Kingsway_Guest" }
+            // Add your 102 Sandbox locations here later!
         ];
 
-        let userMarker = null;
-        let activeRouteLine = null;
-        let activeTarget = null;
-        let userPos = null;
+        // --- 1. VAULT INITIALIZATION (IndexedDB) ---
+        const request = indexedDB.open("ArtemisVault", 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            const store = db.createObjectStore("addresses", { keyPath: "id", autoIncrement: true });
+            store.createIndex("name", "name", { unique: false });
+        };
+        request.onsuccess = (e) => { db = e.target.result; checkVaultCount(); };
 
-        // Voice Alert Flags (Prevent spamming the same warning)
-        let alertsSpoken = { '3km': false, '1km': false, '500ft': false, '100ft': false, 'arrived': false };
+        function checkVaultCount() {
+            const tx = db.transaction("addresses", "readonly");
+            const countReq = tx.objectStore("addresses").count();
+            countReq.onsuccess = () => {
+                if(countReq.result > 0) {
+                    document.getElementById('sync-status').innerText = `VAULT: ${countReq.result} NODES`;
+                }
+            };
+        }
 
+        // --- SYSTEM VOICE ---
         function speak(text) {
-            const synth = window.speechSynthesis;
             const utter = new SpeechSynthesisUtterance(text);
-            utter.rate = 1.0;
-            utter.pitch = 0.8; // Deep cyberpunk robotic voice
-            synth.speak(utter);
+            utter.rate = 1.0; utter.pitch = 0.8;
+            window.speechSynthesis.speak(utter);
         }
 
         function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371000; // Earth radius in meters
+            const R = 6371000;
             const dLat = (lat2-lat1) * Math.PI/180;
             const dLon = (lon2-lon1) * Math.PI/180;
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -141,51 +176,130 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function searchOffline() {
-            const query = document.getElementById('search-input').value.toLowerCase();
-            const results = yegDatabase.filter(spot => spot.n.toLowerCase().includes(query));
+        // --- 2. THE DROPBOX SYNC (Addresses) ---
+        function syncDropboxVault() {
+            const DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/nul502kd2byo9j55mjtw1/Parcel_Addresses_20260324.csv?rlkey=htmnkgk0x084o6zw3mj02xlqr&st=f1wbkq20&dl=1";
+            
+            speak("Initiating high-speed data stream.");
+            document.getElementById('sync-status').innerText = "📡 STREAMING...";
 
-            if(results.length > 0) {
-                const bestMatch = results[0];
-                map.setView([bestMatch.lat, bestMatch.lon], 15);
-                L.popup().setLatLng([bestMatch.lat, bestMatch.lon])
-                    .setContent(`<b>MATCH FOUND:</b> ${bestMatch.n}<br><button onclick="setDestination(${bestMatch.lat}, ${bestMatch.lon}, '${bestMatch.n}')">🛣️ LOCK ROUTE</button>`)
-                    .openOn(map);
-            } else {
-                speak("No offline database matches found.");
-            }
+            let count = 0;
+            const tx = db.transaction("addresses", "readwrite");
+            const store = tx.objectStore("addresses");
+
+            Papa.parse(DROPBOX_URL, {
+                download: true, header: true, skipEmptyLines: true,
+                step: function(results) {
+                    const row = results.data;
+                    const name = row.Address || row.Name || row.ADDRESS || row.NAME;
+                    const lat = parseFloat(row.Latitude || row.LATITUDE);
+                    const lon = parseFloat(row.Longitude || row.LONGITUDE);
+
+                    if (name && lat && lon) {
+                        store.add({ name: name, lat: lat, lon: lon });
+                        count++;
+                        if (count % 1000 === 0) {
+                            document.getElementById('progress-bar').style.width = (count / 4000) + "%"; 
+                        }
+                    }
+                },
+                complete: function() {
+                    speak("Vault initialized. Offline tracking ready.");
+                    checkVaultCount();
+                    document.getElementById('progress-bar').style.width = "100%";
+                    setTimeout(() => document.getElementById('progress-bar').style.width = "0%", 2000);
+                }
+            });
         }
 
-        function setDestination(lat, lon, name) {
+        // --- 3. SYNC WIFI NODES (Blue Markers) ---
+        function syncWifiNodes() {
+            wifiLayer.clearLayers(); // Clear old ones to prevent duplicates
+            
+            yegWifiDatabase.forEach(node => {
+                // BLUE CIRCLE MARKERS FOR WIFI
+                const marker = L.circleMarker([node.lat, node.lon], {
+                    radius: 7, color: '#00f3ff', fillColor: '#00f3ff', fillOpacity: 0.6, weight: 2
+                }).bindPopup(`<b>${node.n}</b><br>SSID: ${node.s}<br><button onclick="lockRoute(${node.lat}, ${node.lon}, '${node.n}')">LOCK ROUTE</button>`);
+                
+                wifiLayer.addLayer(marker);
+            });
+            speak("Wifi tactical nodes plotted on grid.");
+        }
+
+        // --- 4. THE VAULT SEARCH ---
+        function searchVault() {
+            const query = document.getElementById('search-input').value.toUpperCase();
+            if (!query) return;
+
+            const tx = db.transaction("addresses", "readonly");
+            const index = tx.objectStore("addresses").index("name");
+            
+            document.getElementById('sync-status').innerText = "🔍 SCANNING...";
+
+            let found = false;
+            index.openCursor().onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    if (cursor.value.name.toUpperCase().includes(query)) {
+                        const match = cursor.value;
+                        found = true;
+                        
+                        map.setView([match.lat, match.lon], 16);
+                        
+                        // RED CIRCLE MARKER FOR DESTINATION
+                        if (destMarker) map.removeLayer(destMarker);
+                        destMarker = L.circleMarker([match.lat, match.lon], {
+                            radius: 9, color: '#ff0055', fillColor: '#ff0055', fillOpacity: 0.9, weight: 2
+                        }).addTo(map)
+                        .bindPopup(`<b>${match.name}</b><br><button onclick="lockRoute(${match.lat}, ${match.lon}, '${match.name}')">LOCK ROUTE</button>`)
+                        .openPopup();
+
+                        document.getElementById('sync-status').innerText = "✅ NODE FOUND";
+                        speak("Location verified.");
+                        return; // Stop at first match
+                    }
+                    cursor.continue();
+                } else if (!found) {
+                    speak("No sector matches found in offline vault.");
+                    document.getElementById('sync-status').innerText = "❌ NO MATCH";
+                }
+            };
+        }
+
+        // --- 5. GPS & NAVIGATION (Auto-Adjusting) ---
+        function lockRoute(lat, lon, name) {
             activeTarget = { lat, lon, name };
             alertsSpoken = { '3km': false, '1km': false, '500ft': false, '100ft': false, 'arrived': false };
-            speak(`Destination locked: ${name}. Proceed towards vector.`);
-            updateNavigation();
+            speak(`Target Locked: ${name}. Tactical line active.`);
+            map.closePopup();
+            updateNavigation(); // Initial draw if GPS is already on
         }
 
-        function startNavScan() {
-            speak("Engaging satellite tracking.");
+        function startGPS() {
+            speak("GPS active. Tracking purple signature.");
             navigator.geolocation.watchPosition(pos => {
                 userPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
                 
                 if (!userMarker) {
-                    // PURPLE USER MARKER
+                    // PURPLE CIRCLE MARKER FOR USER
                     userMarker = L.circleMarker([userPos.lat, userPos.lon], {
-                        radius: 8, color: '#b500ff', fillColor: '#b500ff', fillOpacity: 0.8
+                        radius: 8, color: '#b500ff', fillColor: '#b500ff', fillOpacity: 0.9, weight: 3
                     }).addTo(map).bindPopup("YOU (CYBER_USER)");
+                    map.setView([userPos.lat, userPos.lon], 15);
                 } else {
                     userMarker.setLatLng([userPos.lat, userPos.lon]);
                 }
                 
-                map.setView([userPos.lat, userPos.lon]);
-                updateNavigation();
-            }, err => alert("GPS Jammed or Permission Denied."), { enableHighAccuracy: true });
+                updateNavigation(); // Auto-adjusts the vector line every time GPS moves
+            }, err => alert("GPS Jammed."), { enableHighAccuracy: true });
         }
 
         function updateNavigation() {
             if (!userPos || !activeTarget) return;
 
-            // Draw Neon Cyber-Route line
+            // DRAW/UPDATE NEON CYAN VECTOR LINE
+            // Because this clears and redraws from the user's current spot, it inherently auto-adjusts if you turn!
             if (activeRouteLine) map.removeLayer(activeRouteLine);
             activeRouteLine = L.polyline([
                 [userPos.lat, userPos.lon], 
@@ -197,7 +311,7 @@
 
             document.getElementById('sync-status').innerText = `TARGET: ${distanceMeters.toFixed(0)}m away`;
 
-            // 📢 VOICE PROMPT LOGIC
+            // VOICE ALERTS
             if (distanceMeters <= 3000 && distanceMeters > 1000 && !alertsSpoken['3km']) {
                 speak("Three kilometers to destination."); alertsSpoken['3km'] = true;
             } 
@@ -208,19 +322,13 @@
                 speak("Five hundred feet warning."); alertsSpoken['500ft'] = true;
             } 
             else if (distanceFeet <= 100 && distanceFeet > 20 && !alertsSpoken['100ft']) {
-                speak("One hundred feet warning. Arriving shortly."); alertsSpoken['100ft'] = true;
+                speak("One hundred feet warning."); alertsSpoken['100ft'] = true;
             } 
             else if (distanceMeters <= 20 && !alertsSpoken['arrived']) {
-                speak("You have arrived at your destination node."); alertsSpoken['arrived'] = true;
+                speak("Destination reached."); alertsSpoken['arrived'] = true;
                 if (activeRouteLine) map.removeLayer(activeRouteLine);
                 activeTarget = null;
             }
-        }
-
-        function syncLocalData() {
-            localStorage.setItem('YEG_WIFI_CHUNKS', JSON.stringify(yegDatabase));
-            document.getElementById('sync-status').innerText = "⚡ CACHE LOADED (STABLE)";
-            speak("Database synchronization complete.");
         }
     </script>
 </body>
