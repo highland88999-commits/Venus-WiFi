@@ -19,7 +19,7 @@
   "scope": "./",
   "theme_color": "#00f3ff",
   "orientation": "portrait",
-  "description": "Offline tactical navigation + real Alberta Emergency Alerts for Edmonton citizens",
-  "categories": ["navigation", "utilities", "safety"],
+  "description": "Offline tactical navigation for Edmonton with real-time lane guidance, speed camera alerts, and full retail/residential vault",
+  "categories": ["navigation", "utilities", "maps"],
   "lang": "en-CA"
 }
