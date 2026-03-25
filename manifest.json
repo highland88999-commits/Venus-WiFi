@@ -18,5 +18,8 @@
   "display": "standalone",
   "scope": "./",
   "theme_color": "#00f3ff",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "description": "Offline tactical navigation + real Alberta Emergency Alerts for Edmonton citizens",
+  "categories": ["navigation", "utilities", "safety"],
+  "lang": "en-CA"
 }
