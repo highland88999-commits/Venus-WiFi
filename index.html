@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ CYBER_WIFI // EDMONTON_NET ⚡</title>
+    <title>⚡ CYBER_NAV // YEG_SECTOR ⚡</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00f3ff">
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     
     <style>
@@ -15,172 +14,126 @@
             --bg-color: #0a0a14;
             --neon-cyan: #00f3ff;
             --neon-pink: #ff0055;
+            --neon-purple: #b500ff;
             --neon-green: #39ff14;
             --terminal-font: 'Courier New', Courier, monospace;
         }
 
         body {
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             background-color: var(--bg-color);
             color: #ffffff;
             font-family: var(--terminal-font);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+            display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
         }
 
-        /* Scan-line Effect */
         body::before {
-            content: " ";
-            display: block;
-            position: absolute;
+            content: " "; display: block; position: absolute;
             top: 0; left: 0; bottom: 0; right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
                         linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 2px, 3px 100%;
-            z-index: 1001;
-            pointer-events: none;
+            z-index: 1001; pointer-events: none;
         }
 
         header {
-            background: #0d0d1a;
-            border-bottom: 2px solid var(--neon-cyan);
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 0 15px var(--neon-cyan);
-            z-index: 1002;
+            background: #0d0d1a; border-bottom: 2px solid var(--neon-cyan);
+            padding: 10px 15px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 0 15px var(--neon-cyan); z-index: 1002;
         }
 
-        h1 {
-            margin: 0;
-            font-size: 1.2rem;
-            color: var(--neon-cyan);
-            text-shadow: 0 0 8px var(--neon-cyan);
-            letter-spacing: 2px;
+        h1 { margin: 0; font-size: 1.1rem; color: var(--neon-cyan); text-shadow: 0 0 8px var(--neon-cyan); }
+
+        .nav-dash {
+            display: flex; flex-direction: column; gap: 8px;
+            padding: 10px 15px; background: #121225; border-bottom: 1px solid #2a2a4a; z-index: 1002;
         }
 
-        .status-panel {
-            font-size: 0.85rem;
-            color: var(--neon-green);
-            text-transform: uppercase;
+        .search-bar { display: flex; gap: 10px; }
+
+        input[type="text"] {
+            flex-grow: 1; background: #07070f; border: 1px solid var(--neon-cyan);
+            color: #fff; padding: 10px; font-family: var(--terminal-font);
+            box-shadow: inset 0 0 5px var(--neon-cyan);
         }
 
-        .controls {
-            display: flex;
-            gap: 10px;
-            padding: 10px 15px;
-            background: #121225;
-            border-bottom: 1px solid #2a2a4a;
-            z-index: 1002;
-        }
+        .controls { display: flex; gap: 10px; }
 
         button {
-            background: transparent;
-            color: var(--neon-cyan);
-            border: 1px solid var(--neon-cyan);
-            padding: 10px 15px;
-            cursor: pointer;
-            font-family: var(--terminal-font);
-            text-transform: uppercase;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 5px rgba(0, 243, 255, 0.3);
+            background: transparent; color: var(--neon-cyan); border: 1px solid var(--neon-cyan);
+            padding: 10px; cursor: pointer; font-family: var(--terminal-font);
+            text-transform: uppercase; font-weight: bold; transition: all 0.3s ease;
         }
 
-        button:hover {
-            background: var(--neon-cyan);
-            color: #000;
-            box-shadow: 0 0 15px var(--neon-cyan);
-        }
+        button:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 15px var(--neon-cyan); }
+        button.pink { color: var(--neon-pink); border-color: var(--neon-pink); }
+        button.pink:hover { background: var(--neon-pink); color: #fff; box-shadow: 0 0 15px var(--neon-pink); }
 
-        button.pink-btn {
-            color: var(--neon-pink);
-            border-color: var(--neon-pink);
-            box-shadow: 0 0 5px rgba(255, 0, 85, 0.3);
-        }
+        #map { flex-grow: 1; z-index: 1000; }
 
-        button.pink-btn:hover {
-            background: var(--neon-pink);
-            color: #fff;
-            box-shadow: 0 0 15px var(--neon-pink);
-        }
+        .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%); }
 
-        #map {
-            flex-grow: 1;
-            z-index: 1000;
-        }
-
-        /* Cyberpunk Map Shift (Darkens normal OSM tiles) */
-        .leaflet-tile-pane {
-            filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%);
-        }
-
-        /* Custom Popup Styling */
         .leaflet-popup-content-wrapper {
-            background: #0d0d1a;
-            color: #fff;
-            border: 1px solid var(--neon-cyan);
-            font-family: var(--terminal-font);
-            box-shadow: 0 0 10px var(--neon-cyan);
-        }
-        .leaflet-popup-tip {
-            background: var(--neon-cyan);
+            background: #0d0d1a; color: #fff; border: 1px solid var(--neon-purple);
+            font-family: var(--terminal-font); box-shadow: 0 0 10px var(--neon-purple);
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>[SYS_NET] WIFI_SCOUT // YEG_SECTOR</h1>
-        <div class="status-panel" id="sync-status">⚡ LOCAL_CACHE: OFFLINE</div>
+        <h1>[SYS_NAV] VECTOR_TRACKER // YEG</h1>
+        <div id="sync-status" style="color: var(--neon-green); font-size: 0.8rem;">🛰️ STANDBY</div>
     </header>
 
-    <div class="controls">
-        <button class="pink-btn" onclick="syncLocalData()">💾 SYNC DATABANKS</button>
-        <button onclick="scanGrid()">🛰️ SCAN GRID (20KM)</button>
+    <div class="nav-dash">
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="SEARCH OFFLINE CACHE (e.g., Walmart)...">
+            <button onclick="searchOffline()">🔍 SCAN</button>
+        </div>
+        <div class="controls">
+            <button class="pink" onclick="syncLocalData()">💾 SYNC</button>
+            <button onclick="startNavScan()">📡 ENGAGE GPS</button>
+        </div>
     </div>
 
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        // Set Map Center to Edmonton
         const map = L.map('map').setView([53.5461, -113.4937], 12);
-        
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // 📡 HARDCODED MEGA-DATASET OF EDMONTON SPOTS
         const yegDatabase = [
-            // Core & Downtown
-            { n: "EPL Stanley Milner", b: "Public", lat: 53.5435, lon: -113.4895, s: "EPL-Free-Wifi" },
-            { n: "City Hall Hub", b: "Public", lat: 53.5453, lon: -113.4901, s: "Open City Wi-Fi" },
-            { n: "Rogers Place Arena", b: "Public", lat: 53.5468, lon: -113.4975, s: "RogersPlace_Guest" },
-            { n: "McDonald's Jasper Ave", b: "McD", lat: 53.5415, lon: -113.4975, s: "BELLWIFI@MCD" },
-            
-            // South Side & Whyte
-            { n: "Subway/MCD Whyte Ave", b: "McD", lat: 53.5181, lon: -113.4915, s: "McD_WiFi" },
-            { n: "Southgate Shopping Hub", b: "Mall", lat: 53.4851, lon: -113.5144, s: "#TELUS" },
-            { n: "U of A (Sub Building)", b: "Public", lat: 53.5229, lon: -113.5256, s: "UWS Guest" },
-            { n: "Walmart South Common", b: "Walmart", lat: 53.4475, lon: -113.4792, s: "Walmart_WiFi" },
-            { n: "Superstore Calgary Trail", b: "PC", lat: 53.4882, lon: -113.4938, s: "PC_Guest" },
-            
-            // West End
-            { n: "West Edmonton Mall", b: "Mall", lat: 53.5225, lon: -113.6242, s: "WEM-Guest" },
-            { n: "St. Albert Trail Hub", b: "Retail", lat: 53.5910, lon: -113.5555, s: "ShawOpen" },
-            { n: "Home Depot West", b: "Retail", lat: 53.5428, lon: -113.6120, s: "HomeDepot_Guest" },
-
-            // North End
-            { n: "Kingsway Mall", b: "Mall", lat: 53.5555, lon: -113.5012, s: "Kingsway_Guest" },
-            { n: "Londonderry Mall", b: "Mall", lat: 53.5982, lon: -113.4411, s: "Londonderry_Free" },
-            { n: "Clareview Rec Centre", b: "Public", lat: 53.5997, lon: -113.4074, s: "Open City Wi-Fi" }
+            { n: "EPL Stanley Milner", lat: 53.5435, lon: -113.4895, s: "EPL-Free-Wifi" },
+            { n: "City Hall Hub", lat: 53.5453, lon: -113.4901, s: "Open City Wi-Fi" },
+            { n: "McDonald's Jasper Ave", lat: 53.5415, lon: -113.4975, s: "BELLWIFI@MCD" },
+            { n: "Southgate Shopping Hub", lat: 53.4851, lon: -113.5144, s: "#TELUS" },
+            { n: "Walmart South Common", lat: 53.4475, lon: -113.4792, s: "Walmart_WiFi" },
+            { n: "Superstore Calgary Trail", lat: 53.4882, lon: -113.4938, s: "PC_Guest" },
+            { n: "West Edmonton Mall", lat: 53.5225, lon: -113.6242, s: "WEM-Guest" },
+            { n: "Kingsway Mall", lat: 53.5555, lon: -113.5012, s: "Kingsway_Guest" }
         ];
 
+        let userMarker = null;
+        let activeRouteLine = null;
+        let activeTarget = null;
+        let userPos = null;
+
+        // Voice Alert Flags (Prevent spamming the same warning)
+        let alertsSpoken = { '3km': false, '1km': false, '500ft': false, '100ft': false, 'arrived': false };
+
+        function speak(text) {
+            const synth = window.speechSynthesis;
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.rate = 1.0;
+            utter.pitch = 0.8; // Deep cyberpunk robotic voice
+            synth.speak(utter);
+        }
+
         function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Earth radius
+            const R = 6371000; // Earth radius in meters
             const dLat = (lat2-lat1) * Math.PI/180;
             const dLon = (lon2-lon1) * Math.PI/180;
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -188,63 +141,86 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
+        function searchOffline() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const results = yegDatabase.filter(spot => spot.n.toLowerCase().includes(query));
+
+            if(results.length > 0) {
+                const bestMatch = results[0];
+                map.setView([bestMatch.lat, bestMatch.lon], 15);
+                L.popup().setLatLng([bestMatch.lat, bestMatch.lon])
+                    .setContent(`<b>MATCH FOUND:</b> ${bestMatch.n}<br><button onclick="setDestination(${bestMatch.lat}, ${bestMatch.lon}, '${bestMatch.n}')">🛣️ LOCK ROUTE</button>`)
+                    .openOn(map);
+            } else {
+                speak("No offline database matches found.");
+            }
+        }
+
+        function setDestination(lat, lon, name) {
+            activeTarget = { lat, lon, name };
+            alertsSpoken = { '3km': false, '1km': false, '500ft': false, '100ft': false, 'arrived': false };
+            speak(`Destination locked: ${name}. Proceed towards vector.`);
+            updateNavigation();
+        }
+
+        function startNavScan() {
+            speak("Engaging satellite tracking.");
+            navigator.geolocation.watchPosition(pos => {
+                userPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                
+                if (!userMarker) {
+                    // PURPLE USER MARKER
+                    userMarker = L.circleMarker([userPos.lat, userPos.lon], {
+                        radius: 8, color: '#b500ff', fillColor: '#b500ff', fillOpacity: 0.8
+                    }).addTo(map).bindPopup("YOU (CYBER_USER)");
+                } else {
+                    userMarker.setLatLng([userPos.lat, userPos.lon]);
+                }
+                
+                map.setView([userPos.lat, userPos.lon]);
+                updateNavigation();
+            }, err => alert("GPS Jammed or Permission Denied."), { enableHighAccuracy: true });
+        }
+
+        function updateNavigation() {
+            if (!userPos || !activeTarget) return;
+
+            // Draw Neon Cyber-Route line
+            if (activeRouteLine) map.removeLayer(activeRouteLine);
+            activeRouteLine = L.polyline([
+                [userPos.lat, userPos.lon], 
+                [activeTarget.lat, activeTarget.lon]
+            ], { color: '#00f3ff', weight: 4, opacity: 0.8, dashArray: '5, 10' }).addTo(map);
+
+            const distanceMeters = getDistance(userPos.lat, userPos.lon, activeTarget.lat, activeTarget.lon);
+            const distanceFeet = distanceMeters * 3.28084;
+
+            document.getElementById('sync-status').innerText = `TARGET: ${distanceMeters.toFixed(0)}m away`;
+
+            // 📢 VOICE PROMPT LOGIC
+            if (distanceMeters <= 3000 && distanceMeters > 1000 && !alertsSpoken['3km']) {
+                speak("Three kilometers to destination."); alertsSpoken['3km'] = true;
+            } 
+            else if (distanceMeters <= 1000 && distanceMeters > 152 && !alertsSpoken['1km']) {
+                speak("One kilometer warning."); alertsSpoken['1km'] = true;
+            } 
+            else if (distanceFeet <= 500 && distanceFeet > 100 && !alertsSpoken['500ft']) {
+                speak("Five hundred feet warning."); alertsSpoken['500ft'] = true;
+            } 
+            else if (distanceFeet <= 100 && distanceFeet > 20 && !alertsSpoken['100ft']) {
+                speak("One hundred feet warning. Arriving shortly."); alertsSpoken['100ft'] = true;
+            } 
+            else if (distanceMeters <= 20 && !alertsSpoken['arrived']) {
+                speak("You have arrived at your destination node."); alertsSpoken['arrived'] = true;
+                if (activeRouteLine) map.removeLayer(activeRouteLine);
+                activeTarget = null;
+            }
+        }
+
         function syncLocalData() {
             localStorage.setItem('YEG_WIFI_CHUNKS', JSON.stringify(yegDatabase));
             document.getElementById('sync-status').innerText = "⚡ CACHE LOADED (STABLE)";
-            document.getElementById('sync-status').style.color = "#00f3ff";
-        }
-
-        function scanGrid() {
-            const rawData = localStorage.getItem('YEG_WIFI_CHUNKS');
-            const dataToUse = rawData ? JSON.parse(rawData) : yegDatabase;
-
-            if (!rawData) {
-                alert("ALERT: Using temporary memory. Hit 'SYNC DATABANKS' to lock data offline.");
-            }
-
-            navigator.geolocation.getCurrentPosition(pos => {
-                const uLat = pos.coords.latitude;
-                const uLon = pos.coords.longitude;
-                map.setView([uLat, uLon], 13);
-
-                map.eachLayer(layer => { if (layer instanceof L.Marker || layer instanceof L.Circle) map.removeLayer(layer); });
-
-                L.circle([uLat, uLon], { radius: 20000, color: '#ff0055', fillColor: '#ff0055', fillOpacity: 0.05, weight: 1 }).addTo(map);
-                L.marker([uLat, uLon]).bindPopup("YOU ARE HERE // GRID ORIGIN").addTo(map);
-
-                let hits = 0;
-
-                dataToUse.forEach(spot => {
-                    const dist = getDistance(uLat, uLon, spot.lat, spot.lon);
-                    if (dist <= 20) {
-                        L.marker([spot.lat, spot.lon])
-                            .addTo(map)
-                            .bindPopup(`<b>${spot.n}</b><br>SSID: <code>${spot.s}</code><br>RANGE: ${dist.toFixed(2)} KM`);
-                        hits++;
-                    }
-                });
-
-                document.getElementById('sync-status').innerText = `🛰️ HITS FOUND: [${hits}]`;
-            }, err => {
-                alert("GPS Jammed or Permission Denied.");
-            }, { enableHighAccuracy: true });
-        }
-
-        window.onload = () => {
-            if (localStorage.getItem('YEG_WIFI_CHUNKS')) {
-                document.getElementById('sync-status').innerText = "⚡ CACHE LOADED (STABLE)";
-                document.getElementById('sync-status').style.color = "#00f3ff";
-            }
-        };
-    </script>
-
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Cyber System Active // SW Registered'))
-                    .catch(err => console.log('SW Registration Failed:', err));
-            });
+            speak("Database synchronization complete.");
         }
     </script>
 </body>
