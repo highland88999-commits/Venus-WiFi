@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚡ CYBER_WIFI // EDMONTON_NET ⚡</title>
     
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00f3ff">
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     
     <style>
@@ -148,7 +151,6 @@
         // Set Map Center to Edmonton
         const map = L.map('map').setView([53.5461, -113.4937], 12);
         
-        // standard OSM tiles, but the CSS will shift them into neon-dark mode
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         // 📡 HARDCODED MEGA-DATASET OF EDMONTON SPOTS
@@ -177,7 +179,6 @@
             { n: "Clareview Rec Centre", b: "Public", lat: 53.5997, lon: -113.4074, s: "Open City Wi-Fi" }
         ];
 
-        // 🧠 Haversine Formula (No server required)
         function getDistance(lat1, lon1, lat2, lon2) {
             const R = 6371; // Earth radius
             const dLat = (lat2-lat1) * Math.PI/180;
@@ -187,14 +188,12 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        // 💾 Sync to Local Storage
         function syncLocalData() {
             localStorage.setItem('YEG_WIFI_CHUNKS', JSON.stringify(yegDatabase));
             document.getElementById('sync-status').innerText = "⚡ CACHE LOADED (STABLE)";
             document.getElementById('sync-status').style.color = "#00f3ff";
         }
 
-        // 🛰️ Scan functionality
         function scanGrid() {
             const rawData = localStorage.getItem('YEG_WIFI_CHUNKS');
             const dataToUse = rawData ? JSON.parse(rawData) : yegDatabase;
@@ -208,10 +207,8 @@
                 const uLon = pos.coords.longitude;
                 map.setView([uLat, uLon], 13);
 
-                // Clear old scanners
                 map.eachLayer(layer => { if (layer instanceof L.Marker || layer instanceof L.Circle) map.removeLayer(layer); });
 
-                // Draw 20km perimeter scan ring
                 L.circle([uLat, uLon], { radius: 20000, color: '#ff0055', fillColor: '#ff0055', fillOpacity: 0.05, weight: 1 }).addTo(map);
                 L.marker([uLat, uLon]).bindPopup("YOU ARE HERE // GRID ORIGIN").addTo(map);
 
@@ -233,13 +230,22 @@
             }, { enableHighAccuracy: true });
         }
 
-        // Auto-check if previously synced on load
         window.onload = () => {
             if (localStorage.getItem('YEG_WIFI_CHUNKS')) {
                 document.getElementById('sync-status').innerText = "⚡ CACHE LOADED (STABLE)";
                 document.getElementById('sync-status').style.color = "#00f3ff";
             }
         };
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Cyber System Active // SW Registered'))
+                    .catch(err => console.log('SW Registration Failed:', err));
+            });
+        }
     </script>
 </body>
 </html>
