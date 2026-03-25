@@ -29,7 +29,6 @@
             height: 100vh; overflow: hidden;
         }
 
-        /* Scanline Overlay */
         body::before {
             content: " "; display: block; position: absolute;
             top: 0; left: 0; bottom: 0; right: 0;
@@ -128,7 +127,7 @@
         
         let alertsSpoken = { '3km': false, '1km': false, 'arrived': false };
 
-        // --- WIFI DATABASE ---
+        // --- BRANDED WIFI DATABASE ---
         const wifiDatabase = [
             { n: "McDonald's Jasper Ave", brand: "McD", lat: 53.5415, lon: -113.4975, ssid: "McD_WiFi" },
             { n: "Starbucks City Centre", brand: "Coffee", lat: 53.5448, lon: -113.4912, ssid: "Starbucks WiFi" },
@@ -139,7 +138,7 @@
             { n: "Rogers Place Node", brand: "Telco", lat: 53.5469, lon: -113.4972, ssid: "RogersOpen" }
         ];
 
-        // --- VAULT CORE ---
+        // --- VAULT INITIALIZATION ---
         const request = indexedDB.open("ArtemisVault", 1);
         request.onupgradeneeded = (e) => {
             db = e.target.result;
@@ -171,23 +170,34 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
+        // --- THE DROPBOX SYNC (Chunk-Based batching for mobile stability) ---
         function syncDropboxVault() {
             const DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/nul502kd2byo9j55mjtw1/Parcel_Addresses_20260324.csv?rlkey=htmnkgk0x084o6zw3mj02xlqr&st=f1wbkq20&dl=1";
             speak("Initiating vault streaming.");
             document.getElementById('sync-status').innerText = "📡 STREAMING...";
+            
             let count = 0;
-            const tx = db.transaction("addresses", "readwrite");
-            const store = tx.objectStore("addresses");
 
             Papa.parse(DROPBOX_URL, {
-                download: true, header: true, skipEmptyLines: true,
-                step: function(results) {
-                    const row = results.data;
-                    const name = row.Address || row.Name || row.ADDRESS || row.NAME;
-                    if (name && row.Latitude && row.Longitude) {
-                        store.add({ name: name, lat: parseFloat(row.Latitude), lon: parseFloat(row.Longitude) });
-                        count++;
-                        if (count % 1000 === 0) document.getElementById('progress-bar').style.width = (count / 5000) + "%"; 
+                download: true, 
+                header: true, 
+                skipEmptyLines: true,
+                chunk: function(results) {
+                    // Open a new transaction per chunk of rows to prevent auto-timeout crashes on phones!
+                    const tx = db.transaction("addresses", "readwrite");
+                    const store = tx.objectStore("addresses");
+
+                    results.data.forEach(row => {
+                        const name = row.Address || row.Name || row.ADDRESS || row.NAME;
+                        if (name && row.Latitude && row.Longitude) {
+                            store.add({ name: name, lat: parseFloat(row.Latitude), lon: parseFloat(row.Longitude) });
+                            count++;
+                        }
+                    });
+
+                    // Update UI every few thousand rows
+                    if (count % 1000 === 0) {
+                        document.getElementById('progress-bar').style.width = (count / 4200) + "%"; 
                     }
                 },
                 complete: function() {
