@@ -4,9 +4,11 @@ const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  // Core CDNs (cached to prevent white screen if offline or CDN down)
+  // Core CDNs cached for offline reliability
   'https://unpkg.com/leaflet/dist/leaflet.css',
   'https://unpkg.com/leaflet/dist/leaflet.js',
+  'https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css',
+  'https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js',
   'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js'
 ];
 
@@ -21,7 +23,7 @@ self.addEventListener('install', (e) => {
   self.skipWaiting(); // Activate immediately
 });
 
-// Activate — Clean up old caches
+// Activate — Clean old caches
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -35,26 +37,23 @@ self.addEventListener('activate', (e) => {
       );
     })
   );
-  self.clients.claim(); // Take control of all clients immediately
+  self.clients.claim(); // Take control of all clients
 });
 
-// Fetch strategy — Cache-first for offline reliability
+// Fetch strategy — Cache-first with network fallback
 self.addEventListener('fetch', (e) => {
-  // Skip non-GET requests and chrome-extension requests
-  if (e.request.method !== 'GET' || e.request.url.startsWith('chrome-extension')) {
+  // Skip non-GET requests
+  if (e.request.method !== 'GET') {
     return;
   }
 
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
-      // Return cached version if available
       if (cachedResponse) {
         return cachedResponse;
       }
 
-      // Otherwise try network and cache the response for future
       return fetch(e.request).then((networkResponse) => {
-        // Only cache successful responses
         if (!networkResponse || networkResponse.status !== 200) {
           return networkResponse;
         }
@@ -66,8 +65,7 @@ self.addEventListener('fetch', (e) => {
 
         return networkResponse;
       }).catch(() => {
-        // Optional: You could return a custom offline page here if needed
-        console.log("Artemis Shield: Offline mode — serving from cache where possible");
+        console.log("Artemis Shield: Offline — serving from cache where possible");
       });
     })
   );
