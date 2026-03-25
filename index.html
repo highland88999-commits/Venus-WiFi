@@ -124,71 +124,15 @@
         let activeTarget = null;
         let userPos = null;
         let wifiLayer = L.layerGroup().addTo(map);
-        
+        let manualMarker = null;   // Tactical drop marker
+
         let alertsSpoken = { '3km': false, '1km': false, 'arrived': false };
 
-        const wifiDatabase = [
-            { n: "McDonald's Jasper Ave", brand: "McD", lat: 53.5415, lon: -113.4975, ssid: "McD_WiFi" },
-            { n: "Starbucks City Centre", brand: "Coffee", lat: 53.5448, lon: -113.4912, ssid: "Starbucks WiFi" },
-            { n: "Tim Hortons Hub", brand: "Timmies", lat: 53.5480, lon: -113.5000, ssid: "Tim_Hortons_WiFi" },
-            { n: "Walmart South Common", brand: "Retail", lat: 53.4475, lon: -113.4792, ssid: "Walmart_WiFi" },
-            { n: "Superstore Calgary Tr", brand: "Grocery", lat: 53.4882, lon: -113.4938, ssid: "PC_Guest" },
-            { n: "TELUS Spark Hub", brand: "Telco", lat: 53.5450, lon: -113.4850, ssid: "#TELUS" },
-            { n: "Rogers Place Node", brand: "Telco", lat: 53.5469, lon: -113.4972, ssid: "RogersOpen" }
-        ];
+        const wifiDatabase = [ /* your existing wifi nodes */ ];
 
-        let retailNodes = {
-            grocery: ["SAFEWAY", "SOBEYS", "SAVE-ON-FOODS", "NO FRILLS", "SUPERSTORE", "FRESHCO", "COSTCO", "WALMART", "CO-OP"],
-            pharmacy: ["SHOPPERS DRUG MART", "REXALL", "LONDON DRUGS"],
-            specialty: ["PET VALU", "PETSMART", "BONE & BISCUIT", "MICHAELS"],
-            fuel: ["SHELL", "ESSO", "PETRO-CANADA", "PETRO CANADA", "MOBIL", "7-ELEVEN", "7 ELEVEN", "FASCAS", "HUGHES", "DOMO", "CIRCLE K"]
-        };
+        // ... (keep all your other arrays: retailNodes, preloadedRetailNodes, etc.)
 
-        // Preloaded Exact Locations
-        const preloadedRetailNodes = [
-            // Grocery
-            { name: "FreshCo Manning Village: 398 Ebbers Blvd NW", type: "GROCERY" },
-            { name: "FreshCo Palisades Square: 12950 - 137 Avenue NW", type: "GROCERY" },
-            { name: "FreshCo Coliseum: 8118 - 118 Avenue NW", type: "GROCERY" },
-            { name: "FreshCo Jasper Gates: 15006 Stony Plain Rd NW", type: "GROCERY" },
-            { name: "FreshCo Millbourne: 100, 38 Avenue & Millwoods Road NW", type: "GROCERY" },
-            { name: "FreshCo Lewis Estates: 1030 Webber Greens Drive NW", type: "GROCERY" },
-            { name: "Chalo! FreshCo Tamarack: 2355 17 St NW", type: "GROCERY" },
-            { name: "FreshCo Heritage: 2011 111 St NW", type: "GROCERY" },
-            { name: "Loblaws City Market Ice District: 10308 103 St NW", type: "GROCERY" },
-            { name: "Wholesale Club: 14740 111th Ave NW", type: "GROCERY" },
-            { name: "Costco Wholesale: 12450 149 St NW", type: "GROCERY" },
-            // Pharmacy
-            { name: "Shoppers Drug Mart Whyte Ave: 10907 82nd Avenue NW", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart City Centre East: 10255 101 St NW, Unit 102", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart Mill Woods: 2331 66th St NW, Unit 417", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart Northgate: 5351 167 Avenue NW", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart Century Park: 10956 23 Ave NW", type: "PHARMACY" },
-            { name: "Shoppers Drug Mart Millwoods Mainstreet Mall: 6428 28 Avenue", type: "PHARMACY" },
-            { name: "Rexall Kaye Edmonton Clinic: 11400 University Avenue NW", type: "PHARMACY" },
-            { name: "Rexall 167th Ave & 82nd St: 16703 - 82nd Street", type: "PHARMACY" },
-            { name: "Rexall Westgate: 9540 163rd Street NW", type: "PHARMACY" },
-            { name: "Rexall 50th / 102nd: 10155-50th Street NW", type: "PHARMACY" },
-            // Specialty
-            { name: "PetSmart NW Edmonton: 13916 - 137 Ave", type: "SPECIALTY" },
-            { name: "PetSmart South Edmonton: 3289 Calgary Trail NW", type: "SPECIALTY" },
-            { name: "Pet Valu Mayfield Common: A014-294 Mayfield Common NW", type: "SPECIALTY" },
-            { name: "Pet Valu Westmount Shopping Centre: 240-13310 111 Ave & Groat Rd", type: "SPECIALTY" },
-            { name: "Pet Valu West Henday: 18-1010 Webber Greens Dr NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit 50th Street Market: 4937-167th Avenue NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Griesbach Village: 9950 137 Avenue NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Hampton Market: 6282 199 Street NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Crestwood: 9676 142 Street", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Gateway Boulevard: 3354 Gateway Boulevard NW", type: "SPECIALTY" },
-            { name: "Bone & Biscuit Summerside: 1058 91 Street SW", type: "SPECIALTY" },
-            { name: "Michaels West Edmonton: 9718 170th St NW", type: "SPECIALTY" },
-            { name: "Michaels South Edmonton Common: 1930 99th St NW", type: "SPECIALTY" },
-            { name: "Michaels Skyview Power Centre: 13640 137th Ave NW", type: "SPECIALTY" },
-            { name: "Michaels Manning Town Centre: 13703 42nd St NW", type: "SPECIALTY" },
-            { name: "Michaels Tamarack Shopping Centre: 3741 17 St NW", type: "SPECIALTY" },
-            { name: "Michaels Windermere: 6048 Currents Dr NW", type: "SPECIALTY" }
-        ];
-
+        // IndexedDB setup (unchanged)
         const request = indexedDB.open("ArtemisVault", 1);
         request.onupgradeneeded = (e) => {
             db = e.target.result;
@@ -198,225 +142,62 @@
         request.onsuccess = (e) => { 
             db = e.target.result; 
             checkVaultCount(); 
-            // Load the hardcoded nodes immediately upon DB open if they aren't there yet
             loadPreloadedNodes();
         };
 
-        function checkVaultCount() {
-            const tx = db.transaction("addresses", "readonly");
-            const countReq = tx.objectStore("addresses").count();
-            countReq.onsuccess = () => {
-                if(countReq.result > 0) document.getElementById('sync-status').innerText = `VAULT: ${countReq.result} NODES`;
-            };
-        }
+        // ... (keep all your helper functions: speak, calculateDistance, getColumnData, getCoordinatesForAddress, loadPreloadedNodes, syncDropboxVault, syncWifiNodes, searchVault, startGPS, lockRoute, updateNavigation ...)
 
-        function speak(text) {
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.rate = 1.0; utter.pitch = 0.8;
-            window.speechSynthesis.speak(utter);
-        }
+        // ==================== TACTICAL MAP DROP (MANUAL OVERRIDE) ====================
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
 
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; 
-            const dLat = (lat2-lat1) * Math.PI/180;
-            const dLon = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2) * Math.sin(dLon/2);
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
+            // Clear previous tactical marker
+            if (manualMarker) map.removeLayer(manualMarker);
 
-        function getColumnData(row, acceptableHeaders) {
-            for (let key in row) {
-                if (acceptableHeaders.includes(key.trim().toUpperCase())) {
-                    return row[key];
-                }
-            }
-            return null;
-        }
-        
-        // Function to inject the exact addresses you provided
-        async function getCoordinatesForAddress(addressString) {
-            // In a full production app, you might use a geocoding API here.
-            // For now, these will be searchable by name, but to map them perfectly 
-            // we rely on the primary CSV sync to provide lat/lon matching the names.
-            // However, we still add them to the DB so they are guaranteed to exist.
-            return { lat: 53.5461, lon: -113.4937 }; // Default center if lat/lon unknown
-        }
-
-        function loadPreloadedNodes() {
-            const tx = db.transaction("addresses", "readwrite");
-            const store = tx.objectStore("addresses");
-            
-            preloadedRetailNodes.forEach(async (node) => {
-                // To avoid duplicate clutter, we only add if the exact string isn't found easily.
-                // In this simplified version, we just push them.
-                store.add({ 
-                    name: node.name.toUpperCase(), 
-                    lat: 53.5461, // Placeholder until synced with real data or GPS
-                    lon: -113.4937,
-                    type: node.type 
-                });
-            });
-        }
-
-        function syncDropboxVault() {
-            const DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/nul502kd2byo9j55mjtw1/Parcel_Addresses_20260324.csv?rlkey=htmnkgk0x084o6zw3mj02xlqr&st=f1wbkq20&dl=1";
-            speak("Initiating full retail and fuel sync.");
-            document.getElementById('sync-status').innerText = "📡 SCANNING NODES...";
-            let count = 0;
-
-            Papa.parse(DROPBOX_URL, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                chunk: function(results) {
-                    const tx = db.transaction("addresses", "readwrite");
-                    const store = tx.objectStore("addresses");
-
-                    results.data.forEach(row => {
-                        const rawName = getColumnData(row, ["ADDRESS", "FULL ADDRESS", "SITE_ADDRESS", "NAME"]);
-                        const rawLat = getColumnData(row, ["LATITUDE", "LAT", "Y"]);
-                        const rawLon = getColumnData(row, ["LONGITUDE", "LON", "X"]);
-
-                        if (rawName && rawLat && rawLon) {
-                            const upperName = rawName.trim().toUpperCase();
-                            
-                            let category = "GENERAL";
-                            if (retailNodes.grocery.some(brand => upperName.includes(brand))) category = "GROCERY";
-                            if (retailNodes.pharmacy.some(brand => upperName.includes(brand))) category = "PHARMACY";
-                            if (retailNodes.specialty.some(brand => upperName.includes(brand))) category = "SPECIALTY";
-                            if (retailNodes.fuel.some(brand => upperName.includes(brand))) category = "FUEL";
-
-                            store.add({ 
-                                name: upperName, 
-                                lat: parseFloat(rawLat), 
-                                lon: parseFloat(rawLon),
-                                type: category 
-                            });
-                            count++;
-                        }
-                    });
-                    
-                    document.getElementById('progress-bar').style.width = (count / 4200) + "%"; 
-                },
-                complete: function() {
-                    speak("Vault synchronized with fuel and retail sectors.");
-                    checkVaultCount();
-                    document.getElementById('progress-bar').style.width = "100%";
-                    setTimeout(() => document.getElementById('progress-bar').style.width = "0%", 2000);
-                }
-            });
-        }
-
-        function syncWifiNodes() {
-            if (!userPos) { speak("GPS required for scan."); return; }
-            wifiLayer.clearLayers();
-            let count = 0;
-            wifiDatabase.forEach(node => {
-                const dist = calculateDistance(userPos.lat, userPos.lon, node.lat, node.lon);
-                if (dist <= 20) {
-                    L.circleMarker([node.lat, node.lon], {
-                        radius: 7, color: '#00f3ff', fillColor: '#00f3ff', fillOpacity: 0.6, weight: 2
-                    }).bindPopup(`<b>${node.n}</b><br>SSID: ${node.ssid}<br>${dist.toFixed(1)}km away<br><button onclick="lockRoute(${node.lat}, ${node.lon}, '${node.n}')">LOCK ROUTE</button>`)
-                    .addTo(wifiLayer);
-                    count++;
-                }
-            });
-            speak(`${count} nodes within perimeter.`);
-        }
-
-        function searchVault() {
-            const query = document.getElementById('search-input').value.toUpperCase();
-            if (!query) return;
-
-            const tx = db.transaction("addresses", "readonly");
-            const index = tx.objectStore("addresses").index("name");
-
-            document.getElementById('sync-status').innerText = "🔍 SCANNING...";
-
-            index.openCursor().onsuccess = (e) => {
-                const cursor = e.target.result;
-                if (cursor) {
-                    const node = cursor.value;
-                    if (node.name.includes(query)) {
-                        map.setView([node.lat, node.lon], 16);
-                        
-                        let markerColor = '#ff0055'; // Default Pink
-                        if (node.type === "GROCERY") markerColor = '#39ff14';   // Green
-                        if (node.type === "PHARMACY") markerColor = '#00f3ff';  // Cyan
-                        if (node.type === "SPECIALTY") markerColor = '#b500ff'; // Purple
-                        if (node.type === "FUEL") markerColor = '#ffff00';      // Yellow
-
-                        if (destMarker) map.removeLayer(destMarker);
-                        destMarker = L.circleMarker([node.lat, node.lon], {
-                            radius: 11, color: markerColor, fillColor: markerColor, fillOpacity: 0.8, weight: 3
-                        }).addTo(map).bindPopup(`
-                            <div style="text-align:center; font-family: 'Courier New', monospace;">
-                                <b style="color:${markerColor}">${node.name}</b><br>
-                                <span style="font-size: 0.7rem; color: #888;">TYPE: ${node.type}</span><br><br>
-                                <button onclick="lockRoute(${node.lat}, ${node.lon}, '${node.name}')">LOCK VECTOR</button>
-                            </div>
-                        `).openPopup();
-
-                        speak(`${node.name} locked.`);
-                        document.getElementById('sync-status').innerText = "✅ NODE LOCKED";
-                        return;
-                    }
-                    cursor.continue();
-                } else {
-                    document.getElementById('sync-status').innerText = "❌ NOT IN VAULT";
-                    speak("Vector not in local vault.");
-                }
-            };
-        }
-
-        function startGPS() {
-            speak("Engaging GPS.");
-            navigator.geolocation.watchPosition(pos => {
-                userPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-                if (!userMarker) {
-                    userMarker = L.circleMarker([userPos.lat, userPos.lon], {
-                        radius: 8, color: '#b500ff', fillColor: '#b500ff', fillOpacity: 0.9, weight: 3
-                    }).addTo(map);
-                    rangeRing = L.circle([userPos.lat, userPos.lon], {
-                        radius: 20000, color: '#00f3ff', weight: 1, fillOpacity: 0.03, dashArray: '10, 10'
-                    }).addTo(map);
-                    map.setView([userPos.lat, userPos.lon], 11);
-                } else {
-                    userMarker.setLatLng([userPos.lat, userPos.lon]);
-                    rangeRing.setLatLng([userPos.lat, userPos.lon]);
-                }
-                updateNavigation();
-            }, null, { enableHighAccuracy: true });
-        }
-
-        function lockRoute(lat, lon, name) {
-            activeTarget = { lat, lon, name };
-            alertsSpoken = { '3km': false, '1km': false, 'arrived': false };
-            speak(`Locked on: ${name}.`);
-            map.closePopup();
-            updateNavigation();
-        }
-
-        function updateNavigation() {
-            if (!userPos || !activeTarget) return;
-            if (activeRouteLine) map.removeLayer(activeRouteLine);
-            activeRouteLine = L.polyline([[userPos.lat, userPos.lon], [activeTarget.lat, activeTarget.lon]], { 
-                color: '#00f3ff', weight: 4, opacity: 0.8, dashArray: '5, 10' 
+            manualMarker = L.circleMarker([lat, lon], {
+                radius: 12, 
+                color: '#ffaa00', 
+                fillColor: '#ffaa00', 
+                fillOpacity: 0.25, 
+                weight: 3, 
+                dashArray: '3, 6'
             }).addTo(map);
-            const dist = calculateDistance(userPos.lat, userPos.lon, activeTarget.lat, activeTarget.lon) * 1000;
-            document.getElementById('sync-status').innerText = `DIST: ${dist.toFixed(0)}m`;
-            if (dist <= 20 && !alertsSpoken['arrived']) {
-                speak("Arrived at target node."); alertsSpoken['arrived'] = true;
-                activeTarget = null;
-            }
-        }
 
+            const holoframe = `
+                <div style="text-align:center; font-family: var(--terminal-font); border: 2px solid #ffaa00; padding: 10px; background: rgba(30, 20, 0, 0.95); box-shadow: 0 0 15px #ffaa00;">
+                    <b style="color:#ffaa00; text-shadow: 0 0 8px #ffaa00; font-size:1.1em;">[ TACTICAL DROP ]</b><br>
+                    <span style="font-size: 0.7rem; color: #ccc;">
+                        LAT: ${lat.toFixed(6)}<br>
+                        LON: ${lon.toFixed(6)}
+                    </span><br><br>
+                    <button style="background:transparent; border:1px solid #ffaa00; color:#ffaa00; padding:8px 12px; width:100%; font-family:var(--terminal-font); cursor:pointer;"
+                            onmouseover="this.style.background='#ffaa00';this.style.color='#000'"
+                            onmouseout="this.style.background='transparent';this.style.color='#ffaa00'"
+                            onclick="lockRoute(${lat}, ${lon}, 'TACTICAL_WAYPOINT'); if(manualMarker) map.removeLayer(manualMarker); map.closePopup();">
+                        ▶ LOCK VECTOR &amp; NAVIGATE
+                    </button>
+                </div>
+            `;
+
+            manualMarker.bindPopup(holoframe, { 
+                closeButton: false, 
+                minWidth: 160,
+                className: 'tactical-popup'
+            }).openPopup();
+
+            speak("Tactical coordinates acquired. Vector ready for lock.");
+        });
+
+        // Optional: style for tactical popup (add to <style> if you want)
+        // .tactical-popup .leaflet-popup-content-wrapper { border-color: #ffaa00; }
+
+        // Service worker registration (unchanged)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => { console.log("Artemis Shield: ACTIVE", reg.scope); })
-                    .catch(err => { console.log("Artemis Shield: OFFLINE", err); });
+                    .then(reg => console.log("Artemis Shield: ACTIVE", reg.scope))
+                    .catch(err => console.log("Artemis Shield: OFFLINE", err));
             });
         }
     </script>
