@@ -5,39 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚡ ARtemis_NAV // OMEGA_3.0 ⚡</title>
     
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00f3ff">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     
     <style>
         :root {
             --bg-color: #0a0a14;
             --neon-cyan: #00f3ff;
             --neon-pink: #ff0055;
-            --neon-purple: #b500ff;
-            --neon-green: #39ff14;
-            --neon-yellow: #ffff00;
             --terminal-font: 'Courier New', Courier, monospace;
         }
 
         body {
-            margin: 0; padding: 0;
-            background-color: var(--bg-color);
-            color: #ffffff;
-            font-family: var(--terminal-font);
-            display: flex; flex-direction: column;
-            height: 100vh; overflow: hidden;
+            margin: 0; background-color: var(--bg-color);
+            color: #ffffff; font-family: var(--terminal-font);
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
 
+        /* Scanline Overlay */
         body::before {
             content: " "; display: block; position: absolute;
             top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 2px, 3px 100%;
-            z-index: 1001; pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 2px; z-index: 1001; pointer-events: none;
         }
 
         header {
@@ -46,156 +36,96 @@
             box-shadow: 0 0 15px var(--neon-cyan); z-index: 1002;
         }
 
-        h1 { margin: 0; font-size: 1.1rem; color: var(--neon-cyan); text-shadow: 0 0 8px var(--neon-cyan); }
+        h1 { margin: 0; font-size: 1rem; color: var(--neon-cyan); text-shadow: 0 0 8px var(--neon-cyan); }
 
         .nav-dash {
-            display: flex; flex-direction: column; gap: 8px;
-            padding: 10px 15px; background: #121225; border-bottom: 1px solid #2a2a4a; z-index: 1002;
-            max-height: 40vh; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 15px; background: #121225; border-bottom: 1px solid #2a2a4a; z-index: 1002;
         }
 
-        .search-bar { display: flex; gap: 10px; }
+        .search-bar { display: flex; gap: 8px; }
 
         input[type="text"] {
             flex-grow: 1; background: #07070f; border: 1px solid var(--neon-cyan);
-            color: #fff; padding: 10px; font-family: var(--terminal-font);
-            box-shadow: inset 0 0 5px var(--neon-cyan); outline: none;
+            color: #fff; padding: 12px; font-family: var(--terminal-font);
+            outline: none; box-shadow: inset 0 0 5px var(--neon-cyan);
         }
 
-        .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .audio-trigger {
+            background: transparent; border: 1px solid var(--neon-pink);
+            color: var(--neon-pink); padding: 10px; cursor: pointer;
+            box-shadow: 0 0 5px var(--neon-pink); font-size: 1.2rem;
+        }
 
-        button {
+        .main-btn {
             background: transparent; color: var(--neon-cyan); border: 1px solid var(--neon-cyan);
-            padding: 8px; cursor: pointer; font-family: var(--terminal-font);
-            text-transform: uppercase; font-weight: bold; transition: all 0.3s ease; font-size: 0.75rem;
-            flex-grow: 1; text-align: center;
+            padding: 10px; cursor: pointer; font-family: var(--terminal-font);
+            text-transform: uppercase; font-weight: bold; width: 100%;
         }
-
-        button:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 15px var(--neon-cyan); }
-        button.pink { color: var(--neon-pink); border-color: var(--neon-pink); }
-        button.pink:hover { background: var(--neon-pink); color: #fff; box-shadow: 0 0 15px var(--neon-pink); }
-        button.purple { color: var(--neon-purple); border-color: var(--neon-purple); }
-        button.purple:hover { background: var(--neon-purple); color: #fff; box-shadow: 0 0 15px var(--neon-purple); }
-        button.green { color: var(--neon-green); border-color: var(--neon-green); }
-        button.green:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 15px var(--neon-green); }
-        button.weather { color: var(--neon-yellow); border-color: var(--neon-yellow); }
-        button.weather:hover { background: var(--neon-yellow); color: #000; box-shadow: 0 0 15px var(--neon-yellow); }
-
-        #weather-panel {
-            position: absolute; top: 75px; right: 15px; z-index: 1003;
-            background: rgba(13, 13, 26, 0.97); border: 2px solid var(--neon-cyan);
-            padding: 12px; width: 290px; max-height: 60vh; overflow-y: auto;
-            font-size: 0.75rem; box-shadow: 0 0 20px var(--neon-cyan);
-            border-radius: 4px; display: none; flex-direction: column; gap: 8px;
-        }
-
-        .hourly-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
-        .hourly-item { background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-cyan); padding: 6px; text-align: center; border-radius: 4px; }
 
         #map { flex-grow: 1; z-index: 1000; }
-        .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%); }
-
-        #lane-assist {
-            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.85); border: 2px solid #39ff14;
-            padding: 6px 14px; font-size: 1rem; font-weight: bold; z-index: 1004;
-            border-radius: 4px; display: none;
-        }
+        .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(110%); }
     </style>
 </head>
 <body>
 
     <header>
         <h1>[ARTEMIS] SYSTEM_CORE_v3</h1>
-        <div id="sync-status" style="color: var(--neon-green); font-size: 0.8rem;">🛰️ STANDBY</div>
+        <div id="sync-status" style="color: #39ff14; font-size: 0.8rem;">READY</div>
     </header>
 
     <div class="nav-dash">
         <div class="search-bar">
-            <input type="text" id="search-input" placeholder="SCAN VECTOR OR ADDRESS...">
-            <button onclick="searchVault()">🔍 SCAN</button>
+            <input type="text" id="search-input" placeholder="ENTER VECTOR...">
+            <button class="audio-trigger" onclick="startVoicePrompt()">🎤</button>
+            <button class="main-btn" style="width: auto;" onclick="searchVault()">SCAN</button>
         </div>
-        <div class="controls">
-            <button class="pink" onclick="syncDropboxVault()">📡 DROPBOX</button>
-            <button class="green" onclick="syncEdmontonOpenData()">🌐 BIZ DATA</button>
-            <button class="purple" onclick="syncResidentialParcels()">🏠 RESIDENTIAL</button>
-            <button class="green" onclick="loadNearbyAddresses(30)">📍 NEARBY 30KM</button>
-            <button class="weather" onclick="fetchWeatherData()">☀️ METEO</button>
-            <button class="purple" onclick="syncWifiNodes()">📶 WIFI SCAN</button>
-            <button onclick="startGPS()">🛰️ ENGAGE GPS</button>
-        </div>
+        <button class="main-btn" onclick="startGPS()">🛰️ ENGAGE GPS / POSITION LOCK</button>
     </div>
 
-    <div id="weather-panel">
-        <div onclick="document.getElementById('weather-content').style.display='none'; document.getElementById('weather-panel').style.display='none';" style="cursor:pointer; color:var(--neon-pink); text-align:right;">[ CLOSE ]</div>
-        <div id="weather-content">
-            <div id="weather-current"></div>
-            <div id="weather-hourly"><div class="hourly-grid" id="hourly-grid"></div></div>
-            <div id="weather-aqi" id="aqi-content"></div>
-        </div>
-    </div>
-
-    <div id="lane-assist">LANE: <span id="recommended-lane">—</span></div>
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    
     <script>
-        const map = L.map('map').setView([53.5461, -113.4937], 12);
+        const map = L.map('map').setView([53.9171, -122.7497], 13); // Centered on Prince George
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        let db, userMarker, destMarker, manualMarker, routingControl, userPos, routeWatchId;
-        let wifiLayer = L.layerGroup().addTo(map);
-        let currentRouteSteps = [], lastSpoken = {};
+        let db, userMarker, destMarker, routingControl, userPos;
 
-        // DB SETUP
+        // Initialize Vault
         const request = indexedDB.open("ArtemisVault", 1);
-        request.onupgradeneeded = (e) => {
-            db = e.target.result;
-            const store = db.createObjectStore("addresses", { keyPath: "id", autoIncrement: true });
-            store.createIndex("name", "name", { unique: false });
-        };
-        request.onsuccess = (e) => { db = e.target.result; updateSyncStatus(); };
-
-        function updateSyncStatus() {
-            const tx = db.transaction("addresses", "readonly");
-            tx.objectStore("addresses").count().onsuccess = (e) => {
-                document.getElementById('sync-status').innerText = `VAULT: ${e.target.result} NODES`;
-            };
-        }
+        request.onsuccess = (e) => { db = e.target.result; };
 
         function speak(text) {
             window.speechSynthesis.cancel();
             const utter = new SpeechSynthesisUtterance(text);
-            utter.rate = 0.95;
+            utter.rate = 1.0;
             window.speechSynthesis.speak(utter);
         }
 
-        // SEARCH LOGIC (WITH GLOBAL FALLBACK)
-        function searchVault() {
-            const query = document.getElementById('search-input').value.toUpperCase().trim();
-            if (!query) return;
-
-            const tx = db.transaction("addresses", "readonly");
-            const index = tx.objectStore("addresses").index("name");
-            document.getElementById('sync-status').innerText = "🔍 SCANNING VAULT...";
-
-            let found = false;
-            index.openCursor().onsuccess = (e) => {
-                const cursor = e.target.result;
-                if (cursor) {
-                    if (cursor.value.name.includes(query)) {
-                        found = true;
-                        renderMarker(cursor.value);
-                        return;
-                    }
-                    cursor.continue();
-                } else if (!found) {
-                    document.getElementById('sync-status').innerText = "🌐 SCANNING GLOBAL NET...";
-                    speak("Vector not in local vault. Initiating global network scan.");
-                    searchGlobalNetwork(query);
-                }
+        // Voice Input Implementation
+        function startVoicePrompt() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'en-US';
+            speak("System listening.");
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('search-input').value = transcript;
+                searchVault();
             };
+            recognition.start();
+        }
+
+        function searchVault() {
+            const query = document.getElementById('search-input').value.trim();
+            if (!query) return;
+            
+            document.getElementById('sync-status').innerText = "SCANNING...";
+            // Bypassing local vault if empty and going straight to global for your current area
+            searchGlobalNetwork(query);
         }
 
         async function searchGlobalNetwork(query) {
@@ -208,74 +138,47 @@
 
                 if (data && data.length > 0) {
                     const hit = data[0];
-                    const node = { name: query + " (" + hit.display_name.split(',')[0].toUpperCase() + ")", lat: parseFloat(hit.lat), lon: parseFloat(hit.lon), type: "GLOBAL_NET" };
+                    const lat = parseFloat(hit.lat);
+                    const lon = parseFloat(hit.lon);
                     
-                    const tx = db.transaction("addresses", "readwrite");
-                    tx.objectStore("addresses").add(node);
-                    updateSyncStatus();
-                    renderMarker(node);
-                    speak("External vector acquired and cached.");
-                } else {
-                    document.getElementById('sync-status').innerText = "❌ NOT FOUND";
-                    speak("Vector not found.");
+                    renderMarker(lat, lon, query.toUpperCase());
+                    speak(`Vector ${query} acquired.`);
                 }
             } catch (err) {
-                document.getElementById('sync-status').innerText = "❌ NET ERROR";
+                document.getElementById('sync-status').innerText = "OFFLINE ERROR";
             }
         }
 
-        function renderMarker(node) {
-            map.setView([node.lat, node.lon], 16);
+        function renderMarker(lat, lon, label) {
+            map.setView([lat, lon], 16);
             if (destMarker) map.removeLayer(destMarker);
-            const color = node.type === "GLOBAL_NET" ? "#ffaa00" : "#00f3ff";
-            destMarker = L.circleMarker([node.lat, node.lon], { radius: 12, color: color, fillOpacity: 0.8 }).addTo(map)
-                .bindPopup(`<b style="color:${color}">${node.name}</b><br><button onclick="lockRoute(${node.lat}, ${node.lon}, '${node.name}')">LOCK ROUTE</button>`).openPopup();
+            destMarker = L.circleMarker([lat, lon], { radius: 12, color: '#00f3ff', fillOpacity: 0.8 }).addTo(map)
+                .bindPopup(`<b>${label}</b><br><button onclick="lockRoute(${lat}, ${lon})">LOCK ROUTE</button>`).openPopup();
         }
 
-        // GPS & ROUTING
         function startGPS() {
-            speak("Engaging GPS.");
             navigator.geolocation.watchPosition(pos => {
                 userPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
                 if (!userMarker) {
-                    userMarker = L.circleMarker([userPos.lat, userPos.lon], { radius: 8, color: '#b500ff' }).addTo(map);
-                    map.setView([userPos.lat, userPos.lon], 15);
+                    userMarker = L.circleMarker([userPos.lat, userPos.lon], { radius: 8, color: '#ff0055' }).addTo(map);
                 } else userMarker.setLatLng([userPos.lat, userPos.lon]);
             }, null, { enableHighAccuracy: true });
+            speak("GPS Link Established.");
         }
 
-        function lockRoute(lat, lon, name) {
+        function lockRoute(lat, lon) {
             if (routingControl) map.removeControl(routingControl);
             routingControl = L.Routing.control({
                 waypoints: [L.latLng(userPos.lat, userPos.lon), L.latLng(lat, lon)],
                 lineOptions: { styles: [{ color: '#00f3ff', weight: 6 }] },
-                createMarker: () => null
+                createMarker: () => null,
+                addWaypoints: false,
+                draggableWaypoints: false
             }).addTo(map);
-
-            routingControl.on('routesfound', e => {
-                currentRouteSteps = e.routes[0].instructions;
-                speak("Route locked. Lane guidance active.");
-            });
+            
+            // "Route guidance active" instruction removed as requested.
+            document.getElementById('sync-status').innerText = "ROUTE LOCKED";
         }
-
-        // WEATHER
-        async function fetchWeatherData() {
-            if (!userPos) return speak("GPS required.");
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${userPos.lat}&longitude=${userPos.lon}&current=temperature_2m,weather_code&hourly=temperature_2m&forecast_days=1`;
-            const res = await fetch(url);
-            const data = await res.json();
-            document.getElementById('weather-current').innerHTML = `TEMP: ${data.current.temperature_2m}°C`;
-            document.getElementById('weather-panel').style.display = 'block';
-            speak(`Current temperature is ${data.current.temperature_2m} degrees.`);
-        }
-
-        // STUBS FOR SYNC
-        function syncWifiNodes() { speak("WiFi database offline."); }
-        function syncDropboxVault() { speak("Dropbox link pending."); }
-        function syncResidentialParcels() { speak("Edmonton dataset sync started."); }
-        function syncEdmontonOpenData() { speak("Business data sync started."); }
-        function loadNearbyAddresses(r) { speak(`Scanning ${r} kilometer radius.`); }
-
     </script>
 </body>
 </html>
