@@ -100,7 +100,6 @@
             padding-bottom: 8px; border-bottom: 1px dashed #444;
         }
 
-        /* Added Missing Weather UI Styles */
         .section { margin-bottom: 8px; }
         .hourly-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
         .hourly-item { 
@@ -136,6 +135,9 @@
             font-size: 0.95rem; font-weight: bold; z-index: 1004;
             border-radius: 4px; display: none; white-space: nowrap;
         }
+
+        /* Added specific icon styling for WiFi nodes */
+        .wifi-icon { font-size: 1.2rem; text-shadow: 0 0 10px var(--neon-purple); text-align: center; }
     </style>
 </head>
 <body>
@@ -196,12 +198,12 @@
 
         let db;
         let userMarker = null;
-        let destMarker = null; // FIXED: Added missing destMarker definition
+        let destMarker = null; 
         let manualMarker = null;
         let routingControl = null;
         let activeTarget = null;
         let userPos = null;
-        let routeWatchId = null; // FIXED: Prevent duplicate GPS watchers
+        let routeWatchId = null; 
         let wifiLayer = L.layerGroup().addTo(map);
         let currentRouteSteps = [];
         let lastSpoken = {};
@@ -245,7 +247,6 @@
             { name: "PetSmart NW Edmonton: 13916 - 137 Ave", type: "SPECIALTY" },
             { name: "Bone & Biscuit 50th Street Market: 4937-167th Avenue NW", type: "SPECIALTY" },
             { name: "Michaels West Edmonton: 9718 170th St NW", type: "SPECIALTY" }
-            // Note: Truncated for brevity but the system accepts any length
         ];
 
         const wifiDatabase = [
@@ -254,13 +255,6 @@
             { n: "Tim Hortons Hub", brand: "Timmies", lat: 53.5480, lon: -113.5000, ssid: "Tim_Hortons_WiFi" },
             { n: "Edmonton Public Library - Main", lat: 53.5444, lon: -113.4903, ssid: "EPL_Free" }
         ];
-
-        let retailNodes = {
-            grocery: ["SAFEWAY", "SOBEYS", "SAVE-ON-FOODS", "NO FRILLS", "SUPERSTORE", "FRESHCO", "COSTCO", "WALMART", "CO-OP"],
-            pharmacy: ["SHOPPERS DRUG MART", "REXALL", "LONDON DRUGS"],
-            specialty: ["PET VALU", "PETSMART", "BONE & BISCUIT", "MICHAELS"],
-            fuel: ["SHELL", "ESSO", "PETRO-CANADA", "MOBIL", "7-ELEVEN", "FASCAS", "HUGHES", "DOMO", "CIRCLE K"]
-        };
 
         // ==================== INDEXEDDB SETUP ====================
         const request = indexedDB.open("ArtemisVault", 1);
@@ -292,7 +286,7 @@
         }
 
         function speak(text) {
-            window.speechSynthesis.cancel(); // FIXED: Prevents speech queues from piling up
+            window.speechSynthesis.cancel(); 
             const utter = new SpeechSynthesisUtterance(text);
             utter.rate = 0.95; utter.pitch = 0.9;
             window.speechSynthesis.speak(utter);
@@ -322,7 +316,77 @@
             });
         }
 
-        // ==================== SYNC FUNCTIONS ====================
+        // ==================== SYNC FUNCTIONS (FIXED) ====================
+        
+        function syncDropboxVault() {
+            speak("Dropbox sync sequence initiated.");
+            document.getElementById('sync-status').innerText = "📡 DROPBOX SYNC PENDING (API REQUIRED)";
+            // Placeholder: Wire up actual Dropbox API logic here
+        }
+
+        function syncEdmontonOpenData() {
+            speak("Connecting to municipal business data.");
+            document.getElementById('sync-status').innerText = "🌐 BIZ DATA PENDING (ENDPOINT NEEDED)";
+            // Placeholder: Add your business dataset URL here
+        }
+        
+        function syncWifiNodes() {
+            speak("Pinging local WiFi nodes.");
+            wifiLayer.clearLayers();
+            wifiDatabase.forEach(node => {
+                const marker = L.marker([node.lat, node.lon], {
+                    icon: L.divIcon({ className: 'wifi-icon', html: '📶' })
+                }).addTo(wifiLayer);
+                
+                marker.bindPopup(`
+                    <div style="font-family: var(--terminal-font); text-align: center;">
+                        <b style="color: var(--neon-purple);">${node.n}</b><br>
+                        SSID: <span style="color: var(--neon-cyan);">${node.ssid}</span>
+                    </div>
+                `);
+            });
+            document.getElementById('sync-status').innerText = "✅ WIFI NODES MAPPED";
+        }
+
+        async function syncResidentialParcels() {
+            speak("Initiating full residential parcel override. Standby.");
+            document.getElementById('sync-status').innerText = "🏠 DOWNLOADING FULL RESIDENTIAL DB...";
+
+            const RESIDENTIAL_URL = "https://data.edmonton.ca/api/views/ut27-nrpn/rows.csv?accessType=DOWNLOAD";
+            let count = 0;
+
+            Papa.parse(RESIDENTIAL_URL, {
+                download: true, header: true, skipEmptyLines: true,
+                chunk: async function(results) {
+                    const tx = db.transaction("addresses", "readwrite");
+                    const store = tx.objectStore("addresses");
+
+                    for (let row of results.data) {
+                        const rawAddr = row["ADDRESS"] || row["FULL_ADDRESS"] || row["Civic Address"] || getColumnData(row, ["ADDRESS", "SITE ADDRESS", "STREET ADDRESS"]);
+                        const rawLat = row["LATITUDE"] || row["Y"] || getColumnData(row, ["LATITUDE", "LAT", "Y"]);
+                        const rawLon = row["LONGITUDE"] || row["X"] || getColumnData(row, ["LONGITUDE", "LON", "X"]);
+
+                        if (rawAddr && rawLat && rawLon) {
+                            const lat = parseFloat(rawLat); const lon = parseFloat(rawLon);
+                            if (isNaN(lat) || isNaN(lon)) continue;
+
+                            const upperName = rawAddr.trim().toUpperCase();
+                            const exists = await addressExists(upperName);
+                            if (!exists) {
+                                store.add({ name: upperName, lat: lat, lon: lon, type: "RESIDENTIAL" });
+                                count++;
+                            }
+                        }
+                    }
+                },
+                complete: function() {
+                    speak(`Full residential database synced. ${count} core nodes integrated.`);
+                    checkVaultCount();
+                    document.getElementById('sync-status').innerText = `✅ FULL RESIDENTIAL: ${count} ADDED`;
+                }
+            });
+        }
+
         async function loadNearbyAddresses(radiusKm = 30) {
             if (!userPos) { speak("GPS required for nearby load."); return; }
             speak(`Loading addresses within ${radiusKm} km radius.`);
@@ -455,7 +519,6 @@
                 lastSpoken = {};
             });
 
-            // FIXED: Clear previous route watchers so they don't stack up and lag your phone
             if (routeWatchId) navigator.geolocation.clearWatch(routeWatchId);
             
             routeWatchId = navigator.geolocation.watchPosition(pos => {
